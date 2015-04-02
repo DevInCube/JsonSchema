@@ -1,18 +1,22 @@
 ﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Newtonsoft.Json.Linq;
+using Moq;
+using System.IO;
+using System.Text;
 
 namespace My.Json.Schema.Tests
 {
     [TestClass]
     public class JSchemaTests
     {
+
         #region jschema_tests
         [TestMethod]
-        public void JSchema_EmptySchemaCompare_EreEqual()
+        public void JSchema_EmptySchemaCompare_AreNotEqual()
         {
             JSchema jschema = JSchema.Parse(@"{}");
-            Assert.AreEqual(new JSchema(), jschema);
+            Assert.AreNotEqual(new JSchema(), jschema);
         }
         [TestMethod]
         [ExpectedException(typeof(ArgumentNullException), "schema")]
@@ -26,7 +30,41 @@ namespace My.Json.Schema.Tests
         {
             JSchema jschema = JSchema.Parse("");
         }
+        [TestMethod]
+        public void JSchema_EmptyToString_IsEmptyJObjectString()
+        {
+            JSchema jschema = new JSchema();
+            Assert.AreEqual("{}", jschema.ToString());
+        }
         #endregion
+
+        #region id_tests
+        [TestMethod]
+        public void Id_NotSet_IsNull()
+        {
+            JSchema jschema = JSchema.Parse(@"{}");
+            Assert.AreEqual(null, jschema.Id);
+        }
+        [TestMethod]
+        public void Id_SetAbsoluteValidUri_IsValidAndMatches()
+        {
+            JSchema jschema = JSchema.Parse(@"{id:'http://x.y.z/rootschema.json#'}");
+            Assert.AreEqual("http://x.y.z/rootschema.json#", jschema.Id.OriginalString);
+        }
+        [TestMethod]
+        public void Id_SetAsString_IsValidAndMatches()
+        {
+            JSchema jschema = JSchema.Parse(@"{id:'stringId'}");
+            Assert.AreEqual("stringId", jschema.Id.OriginalString);
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void Id_SetAsObject_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{id:{}}");            
+        }
+        #endregion
+
         #region title_tests
         [TestMethod]
         public void JSchema_ParseNoTitle_TitleIsNull()
@@ -127,12 +165,13 @@ namespace My.Json.Schema.Tests
             Assert.AreEqual("test", jschema.Format);
         }
         #endregion
+        
         #region type_tests
         [TestMethod]
-        public void Type_NotSet_IsNull()
+        public void Type_NotSet_IsNoneType()
         {
             JSchema jschema = JSchema.Parse(@"{}");
-            Assert.AreEqual(null, jschema.Type);
+            Assert.AreEqual(JSchemaType.None, jschema.Type);
         }
         [TestMethod]
         [ExpectedException(typeof(JSchemaException))]
@@ -146,7 +185,100 @@ namespace My.Json.Schema.Tests
             JSchema jschema = JSchema.Parse(@"{'type':'null'}");
             Assert.AreEqual(JSchemaType.Null, jschema.Type);
         }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]        
+        public void Type_SetEmptyArray_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'type':[]}");
+        }
+        [TestMethod]
+        public void Type_SetObjectAndNullType_HasTwoTypes()
+        {
+            JSchema jschema = JSchema.Parse(@"{'type':['object','null']}");
+
+            Assert.AreNotEqual(JSchemaType.None, jschema.Type);
+            Assert.IsTrue(jschema.Type.HasFlag(JSchemaType.Null));
+            Assert.IsTrue(jschema.Type.HasFlag(JSchemaType.Object));
+        }
+        #endregion   
+
+        #region referencing_tests
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void Ref_SetInvalidReferenceToken_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'$ref':{}}");
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void Ref_SetEmptyReference_ThrowsError()
+        {            
+            JSchema jschema = JSchema.Parse(@"{'$ref':''}");
+        }
+        [TestMethod]
+        public void Property_SetReferenceSchemaInDefinition_ReferenceResolvedAndHasTypeString()
+        {
+            JSchema jschema = JSchema.Parse(@"{
+    'definitions':{'test':{'type':'string'}},
+    'properties' : { 'refTest' : {'$ref' : '#/definitions/test'}},
+}");
+            var sh = jschema.Properties["refTest"];
+            Assert.IsTrue(sh.Type.HasFlag(JSchemaType.String));
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void Property_SetExternalReferenceWithoutResolver_ThrowError()
+        {
+            JSchema jschema = JSchema.Parse(@"{
+    'id' : 'http://test.com/schema#',
+    'properties' : { 'refTest' : {'$ref' : 'core#/definitions/test'}},
+}");
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void Property_SetExternalReferenceWithoutRootId_ThrowError()
+        {
+            JSchema jschema = JSchema.Parse(@"{
+    'properties' : { 'refTest' : {'$ref' : 'core#/definitions/test'}},
+}");
+        }
+        [TestMethod]
+        public void Property_SetExternalReferenceWithResolver_ReferenceResolvedAndHasTypeString()
+        {
+            var mock = new Mock<JSchemaResolver>();
+            mock.Setup(ins => ins.GetSchemaResource(new Uri("http://base.uri/core#/definitions/test")))
+                .Returns(new MemoryStream(
+                    Encoding.UTF8.GetBytes("{ definitions : { 'test' : {'type' : 'string'} } }")));
+
+            JSchema jschema = JSchema.Parse(@"{
+    'properties' : { 'refTest' : {'$ref' : 'core#/definitions/test'}},
+}", mock.Object);
+            var sh = jschema.Properties["refTest"];
+            Assert.IsTrue(sh.Type.HasFlag(JSchemaType.String));
+        }
+
+        /// <summary>
+        /// JSON.NET Schema doesn't support this
+        /// </summary>
+        [TestMethod]
+        public void Reference_InlineDereferencing_OK()
+        {
+            string shStr = @"{
+    'id': 'http://some.site/schema#',
+    'definitions': {
+        'schema1': {
+            'id': '#inner',
+            'type': 'boolean'
+        }
+    },
+    'properties' : { 'refTest' : {'$ref': '#inner'}}
+}";
+            JSchema jschema = JSchema.Parse(shStr);
+            var sh = jschema.Properties["refTest"];
+            Assert.IsTrue(sh.Type.HasFlag(JSchemaType.Boolean));
+        }
         #endregion
+
         #region items_tests
         [TestMethod]
         public void Items_NotSet_IsEmptyJSchemaNotArray()
@@ -154,32 +286,12 @@ namespace My.Json.Schema.Tests
             JSchema jschema = JSchema.Parse(@"{}");
 
             Assert.IsTrue(jschema.Items.IsSchema);
-            Assert.AreEqual(new JSchema(), jschema.Items.Schema);
+            Assert.AreNotEqual(null, jschema.Items.Schema);
             Assert.IsFalse(jschema.Items.IsArray);
             Assert.AreEqual(null, jschema.Items.Array);
-        }
-        [TestMethod]
-        public void Items_SetEmptyObject_IsEmptyJSchemaNotArray()
-        {
-            JSchema jschema = JSchema.Parse(@"{'items':{}}");
-
-            Assert.IsTrue(jschema.Items.IsSchema);
-            Assert.AreEqual(new JSchema(), jschema.Items.Schema);
-            Assert.IsFalse(jschema.Items.IsArray);
-            Assert.AreEqual(null, jschema.Items.Array);
-        }
-        [TestMethod]
-        public void Items_SetEmptyArray_IsEmptyArrayNotSchema()
-        {
-            JSchema jschema = JSchema.Parse(@"{'items':[]}");
-
-            Assert.IsFalse(jschema.Items.IsSchema);
-            Assert.AreEqual(null, jschema.Items.Schema);
-            Assert.IsTrue(jschema.Items.IsArray);
-            Assert.AreNotEqual(null, jschema.Items.Array);
-            Assert.AreEqual(0, jschema.Items.Array.Count);
         }
         #endregion
+
         #region properties_tests
         [TestMethod]
         public void Properties_NotSet_IsEmptyArray()
@@ -196,6 +308,14 @@ namespace My.Json.Schema.Tests
 
             Assert.AreNotEqual(null, jschema.Properties);
             Assert.AreEqual(0, jschema.Properties.Count);
+        }
+        [TestMethod]
+        public void Properties_SetOneEmptyPropertyObject_PropertyIsInDict()
+        {
+            JSchema jschema = JSchema.Parse(@"{'properties':{'test':{}}}");
+
+            Assert.AreNotEqual(null, jschema.Properties["test"]);
+            Assert.AreEqual(1, jschema.Properties.Count);
         }
         #endregion
     }

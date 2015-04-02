@@ -45,8 +45,11 @@
     <Compile Include="ItemsSchema.cs" />
     <Compile Include="JSchema.cs" />
     <Compile Include="JSchemaException.cs" />
+    <Compile Include="JSchemaPreloadedResolver.cs" />
+    <Compile Include="JSchemaResolver.cs" />
     <Compile Include="JSchemaType.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Utilities\JSchemaTypeHelpers.cs" />
     <Compile Include="Utilities\JTokenHelpers.cs" />
   </ItemGroup>
   <ItemGroup>
