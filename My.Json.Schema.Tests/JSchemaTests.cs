@@ -246,11 +246,12 @@ namespace My.Json.Schema.Tests
         public void Property_SetExternalReferenceWithResolver_ReferenceResolvedAndHasTypeString()
         {
             var mock = new Mock<JSchemaResolver>();
-            mock.Setup(ins => ins.GetSchemaResource(new Uri("http://base.uri/core#/definitions/test")))
+            mock.Setup(ins => ins.GetSchemaResource(new Uri("http://test.com/core#/definitions/test")))
                 .Returns(new MemoryStream(
                     Encoding.UTF8.GetBytes("{ definitions : { 'test' : {'type' : 'string'} } }")));
 
             JSchema jschema = JSchema.Parse(@"{
+    'id' : 'http://test.com/schema#',
     'properties' : { 'refTest' : {'$ref' : 'core#/definitions/test'}},
 }", mock.Object);
             var sh = jschema.Properties["refTest"];
@@ -365,6 +366,78 @@ namespace My.Json.Schema.Tests
             JSchema jschema = JSchema.Parse(@"{'multipleOf':2}");
 
             Assert.AreEqual(2D, jschema.MultipleOf);
+        }
+        #endregion
+
+        #region maximum_tests
+        [TestMethod]
+        public void Maximum_NotSet_IsNull()
+        {
+            JSchema jschema = JSchema.Parse(@"{}");
+
+            Assert.AreEqual(null, jschema.Maximum);
+        }
+        [TestMethod]
+        public void Maximum_ParseAsNumber_MatchesDoubleNumber()
+        {
+            JSchema jschema = JSchema.Parse(@"{'maximum':2}");
+
+            Assert.AreEqual(2D, jschema.Maximum);
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void Maximum_ParseAsString_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'maximum':'string'}");
+        }
+        [TestMethod]
+        public void ExclusiveMaximum_NotSet_IsFalse()
+        {
+            JSchema jschema = JSchema.Parse(@"{}");
+
+            Assert.IsFalse(jschema.ExclusiveMaximum);
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void ExclusiveMaximum_IsSetButNoMaximum_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'exclusiveMaximum':5}");
+        }
+        #endregion
+
+        #region minimum_tests
+        [TestMethod]
+        public void Minimum_NotSet_IsNull()
+        {
+            JSchema jschema = JSchema.Parse(@"{}");
+
+            Assert.AreEqual(null, jschema.Minimum);
+        }
+        [TestMethod]
+        public void Minimum_ParseAsNumber_MatchesDoubleNumber()
+        {
+            JSchema jschema = JSchema.Parse(@"{'minimum':2}");
+
+            Assert.AreEqual(2D, jschema.Minimum);
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void Minimum_ParseAsString_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'minimum':'string'}");
+        }
+        [TestMethod]
+        public void ExclusiveMinimum_NotSet_IsFalse()
+        {
+            JSchema jschema = JSchema.Parse(@"{}");
+
+            Assert.IsFalse(jschema.ExclusiveMinimum);
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void ExclusiveMinimum_IsSetButNoMinimum_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'exclusiveMinimum':5}");
         }
         #endregion
     }

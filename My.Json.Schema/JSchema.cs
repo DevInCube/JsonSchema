@@ -48,6 +48,10 @@ namespace My.Json.Schema
                 _multipleOf = value; 
             }
         }
+        public double? Maximum { get; set; }
+        public double? Minimum { get; set; }
+        public bool ExclusiveMaximum { get; set; }
+        public bool ExclusiveMinimum { get; set; }
 
 
         public JSchema()
@@ -163,6 +167,26 @@ namespace My.Json.Schema
                 if (!(t.Type == JTokenType.Float || t.Type == JTokenType.Integer))
                     throw new JSchemaException(t.Type.ToString());
                 jschema.MultipleOf = t.Value<double>();
+            }
+            if (jtoken.TryGetValue("maximum", out t))
+            {
+                if (!(t.Type == JTokenType.Float || t.Type == JTokenType.Integer))
+                    throw new JSchemaException(t.Type.ToString());
+                jschema.Maximum = t.Value<double>();
+            }
+            if (jtoken.TryGetValue("exclusiveMaximum", out t))
+            {
+                if (!(t.Type == JTokenType.Boolean))
+                    throw new JSchemaException(t.Type.ToString());
+                if (jschema.Maximum == null) throw new JSchemaException("maximum not set");
+                jschema.ExclusiveMaximum = t.Value<bool>();
+            }
+            if (jtoken.TryGetValue("exclusiveMinimum", out t))
+            {
+                if (!(t.Type == JTokenType.Boolean))
+                    throw new JSchemaException(t.Type.ToString());
+                if (jschema.Minimum == null) throw new JSchemaException("minimum not set");
+                jschema.ExclusiveMinimum = t.Value<bool>();
             }
         }
 
@@ -280,8 +304,6 @@ namespace My.Json.Schema
                 return this;
             else 
                 return parentSchema.GetRootSchema();
-        }
-
-
+        }        
     }
 }
