@@ -318,5 +318,54 @@ namespace My.Json.Schema.Tests
             Assert.AreEqual(1, jschema.Properties.Count);
         }
         #endregion
+
+        #region multipleOf_tests
+        [TestMethod]
+        public void MultipleOf_NotSet_IsNull()
+        {
+            JSchema jschema = JSchema.Parse(@"{}");
+
+            Assert.AreEqual(null, jschema.MultipleOf);
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void MultipleOf_SetAsString_ThrowError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'multipleOf':'string'}");
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void MultipleOf_ParseAsZero_ThrowError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'multipleOf':0}");
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void MultipleOf_SetAsZero_ThrowError()
+        {
+            JSchema jschema = new JSchema();
+            jschema.MultipleOf = 0;
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void MultipleOf_ParseAsNegativeNumber_ThrowError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'multipleOf':-1}");
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void MultipleOf_SetAsNegativeNumber_ThrowError()
+        {
+            JSchema jschema = new JSchema();
+            jschema.MultipleOf = -2;
+        }
+        [TestMethod]
+        public void MultipleOf_SetPositiveNumber_MatchesDoubleNumber()
+        {
+            JSchema jschema = JSchema.Parse(@"{'multipleOf':2}");
+
+            Assert.AreEqual(2D, jschema.MultipleOf);
+        }
+        #endregion
     }
 }

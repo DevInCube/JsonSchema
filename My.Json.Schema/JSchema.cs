@@ -17,6 +17,7 @@ namespace My.Json.Schema
         private JObject schema;
         private ItemsSchema _items;        
         private IDictionary<string, JSchema> _properties;
+        private double? _multipleOf;
 
         public Uri Id { get; set; }
         public JSchemaType Type { get; set; }
@@ -38,7 +39,16 @@ namespace My.Json.Schema
             {
                 return _items;
             }
-        }       
+        }
+        public double? MultipleOf
+        {
+            get { return _multipleOf; }
+            set {
+                if (value <= 0) throw new JSchemaException("multipleOf should be greater than zero");
+                _multipleOf = value; 
+            }
+        }
+
 
         public JSchema()
         {
@@ -147,7 +157,13 @@ namespace My.Json.Schema
                     JObject objVal = val as JObject;
                     jschema.Properties[prop.Name] = ParseSchema(objVal, jschema);
                 }
-            }            
+            }
+            if (jtoken.TryGetValue("multipleOf", out t))
+            {
+                if (!(t.Type == JTokenType.Float || t.Type == JTokenType.Integer))
+                    throw new JSchemaException(t.Type.ToString());
+                jschema.MultipleOf = t.Value<double>();
+            }
         }
 
         public override string ToString()
@@ -265,6 +281,7 @@ namespace My.Json.Schema
             else 
                 return parentSchema.GetRootSchema();
         }
-        
+
+
     }
 }
