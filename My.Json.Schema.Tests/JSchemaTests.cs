@@ -440,5 +440,47 @@ namespace My.Json.Schema.Tests
             JSchema jschema = JSchema.Parse(@"{'exclusiveMinimum':5}");
         }
         #endregion
+
+        #region maxLength_tests
+        [TestMethod]
+        public void MaxLength_NotSet_IsNull()
+        {
+            JSchema jschema = JSchema.Parse(@"{}");
+
+            Assert.AreEqual(null, jschema.MaxLength);
+        }
+        [TestMethod]
+        public void MaxLength_ParseAsPositiveInteger_MatchesInteger()
+        {
+            JSchema jschema = JSchema.Parse(@"{'maxLength':2}");
+
+            Assert.AreEqual(2, jschema.MaxLength);
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void MaxLength_ParseAsNumber_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'maxLength':2.1}");
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void MaxLength_ParseAsNegativeInteger_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'maxLength':-1}");
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void MaxLength_SetAsNegativeInteger_ThrowsError()
+        {
+            JSchema jschema = new JSchema();
+            jschema.MaxLength = -1;
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void MaxLength_ParseAsString_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'maxLength':'string'}");
+        }
+        #endregion
     }
 }

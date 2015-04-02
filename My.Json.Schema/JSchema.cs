@@ -18,6 +18,7 @@ namespace My.Json.Schema
         private ItemsSchema _items;        
         private IDictionary<string, JSchema> _properties;
         private double? _multipleOf;
+        private int? _maxLength;
 
         public Uri Id { get; set; }
         public JSchemaType Type { get; set; }
@@ -52,7 +53,15 @@ namespace My.Json.Schema
         public double? Minimum { get; set; }
         public bool ExclusiveMaximum { get; set; }
         public bool ExclusiveMinimum { get; set; }
-
+        public int? MaxLength
+        {
+            get { return _maxLength; }
+            set
+            {
+                if (value < 0) throw new JSchemaException("maxLength should be greater or equal zero");
+                _maxLength = value;
+            }
+        }
 
         public JSchema()
         {
@@ -174,6 +183,12 @@ namespace My.Json.Schema
                     throw new JSchemaException(t.Type.ToString());
                 jschema.Maximum = t.Value<double>();
             }
+            if (jtoken.TryGetValue("minimum", out t))
+            {
+                if (!(t.Type == JTokenType.Float || t.Type == JTokenType.Integer))
+                    throw new JSchemaException(t.Type.ToString());
+                jschema.Minimum = t.Value<double>();
+            }
             if (jtoken.TryGetValue("exclusiveMaximum", out t))
             {
                 if (!(t.Type == JTokenType.Boolean))
@@ -187,6 +202,12 @@ namespace My.Json.Schema
                     throw new JSchemaException(t.Type.ToString());
                 if (jschema.Minimum == null) throw new JSchemaException("minimum not set");
                 jschema.ExclusiveMinimum = t.Value<bool>();
+            }
+            if (jtoken.TryGetValue("maxLength", out t))
+            {
+                if (!(t.Type == JTokenType.Integer))
+                    throw new JSchemaException(t.Type.ToString());
+                jschema.MaxLength = t.Value<int>();
             }
         }
 
@@ -304,6 +325,7 @@ namespace My.Json.Schema
                 return this;
             else 
                 return parentSchema.GetRootSchema();
-        }        
+        }
+
     }
 }
