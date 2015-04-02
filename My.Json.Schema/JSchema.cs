@@ -19,6 +19,7 @@ namespace My.Json.Schema
         private IDictionary<string, JSchema> _properties;
         private double? _multipleOf;
         private int? _maxLength;
+        private int? _minLength;
 
         public Uri Id { get; set; }
         public JSchemaType Type { get; set; }
@@ -62,6 +63,16 @@ namespace My.Json.Schema
                 _maxLength = value;
             }
         }
+        public int? MinLength
+        {
+            get { return _minLength; }
+            set
+            {
+                if (value < 0) throw new JSchemaException("minLength should be greater or equal zero");
+                _minLength = value;
+            }
+        }
+        public string Pattern { get; set; }
 
         public JSchema()
         {
@@ -128,7 +139,13 @@ namespace My.Json.Schema
                     }
                 }
                 else throw new JSchemaException("type is " + t.Type.ToString());
-            }            
+            }
+            if (jtoken.TryGetValue("pattern", out t))
+            {
+                if (!t.IsString())
+                    throw new JSchemaException(t.Type.ToString());
+                jschema.Pattern = t.Value<string>();
+            }
 
             if (jtoken.TryGetValue("items", out t))
             {
@@ -208,6 +225,12 @@ namespace My.Json.Schema
                 if (!(t.Type == JTokenType.Integer))
                     throw new JSchemaException(t.Type.ToString());
                 jschema.MaxLength = t.Value<int>();
+            }
+            if (jtoken.TryGetValue("minLength", out t))
+            {
+                if (!(t.Type == JTokenType.Integer))
+                    throw new JSchemaException(t.Type.ToString());
+                jschema.MinLength = t.Value<int>();
             }
         }
 
@@ -326,6 +349,6 @@ namespace My.Json.Schema
             else 
                 return parentSchema.GetRootSchema();
         }
-
+        
     }
 }

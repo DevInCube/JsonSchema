@@ -482,5 +482,70 @@ namespace My.Json.Schema.Tests
             JSchema jschema = JSchema.Parse(@"{'maxLength':'string'}");
         }
         #endregion
+
+        #region minLength_tests
+        [TestMethod]
+        public void MinLength_NotSet_IsNull()
+        {
+            JSchema jschema = JSchema.Parse(@"{}");
+
+            Assert.AreEqual(null, jschema.MinLength);
+        }
+        [TestMethod]
+        public void MinLength_ParseAsPositiveInteger_MatchesInteger()
+        {
+            JSchema jschema = JSchema.Parse(@"{'minLength':2}");
+
+            Assert.AreEqual(2, jschema.MinLength);
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void MinLength_ParseAsNumber_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'minLength':2.1}");
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void MinLength_ParseAsNegativeInteger_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'minLength':-1}");
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void MinLength_SetAsNegativeInteger_ThrowsError()
+        {
+            JSchema jschema = new JSchema();
+            jschema.MinLength = -1;
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void MinLength_ParseAsString_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'minLength':'string'}");
+        }
+        #endregion
+
+        #region pattern
+        [TestMethod]
+        public void Pattern_NotSet_IsNull()
+        {
+            JSchema jschema = JSchema.Parse(@"{}");
+
+            Assert.AreEqual(null, jschema.MinLength);
+        }
+        [TestMethod]
+        public void Pattern_ParseAsString_MatchesString()
+        {
+            JSchema jschema = JSchema.Parse(@"{'pattern':'test'}");
+
+            Assert.AreEqual("test", jschema.Pattern);
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void Pattern_ParseAsNumber_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'pattern':2.1}");
+        }
+        #endregion
     }
 }
