@@ -547,5 +547,89 @@ namespace My.Json.Schema.Tests
             JSchema jschema = JSchema.Parse(@"{'pattern':2.1}");
         }
         #endregion
+
+        #region minItems_tests
+        [TestMethod]
+        public void MinItems_NotSet_IsNull()
+        {
+            JSchema jschema = JSchema.Parse(@"{}");
+
+            Assert.AreEqual(null, jschema.MinItems);
+        }
+        [TestMethod]
+        public void MinItems_ParseAsPositiveInteger_MatchesInteger()
+        {
+            JSchema jschema = JSchema.Parse(@"{'minItems':2}");
+
+            Assert.AreEqual(2, jschema.MinItems);
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void MinItems_ParseAsNumber_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'minItems':2.1}");
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void MinItems_ParseAsNegativeInteger_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'minItems':-1}");
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void MinItems_SetAsNegativeInteger_ThrowsError()
+        {
+            JSchema jschema = new JSchema();
+            jschema.MinItems = -1;
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void MinItems_ParseAsString_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'minItems':'string'}");
+        }
+        #endregion
+
+        #region maxItems_tests
+        [TestMethod]
+        public void MaxItems_NotSet_IsNull()
+        {
+            JSchema jschema = JSchema.Parse(@"{}");
+
+            Assert.AreEqual(null, jschema.MaxItems);
+        }
+        [TestMethod]
+        public void MaxItems_ParseAsPositiveInteger_MatchesInteger()
+        {
+            JSchema jschema = JSchema.Parse(@"{'maxItems':2}");
+
+            Assert.AreEqual(2, jschema.MaxItems);
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void MaxItems_ParseAsNumber_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'maxItems':2.1}");
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void MaxItems_ParseAsNegativeInteger_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'maxItems':-1}");
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void MaxItems_SetAsNegativeInteger_ThrowsError()
+        {
+            JSchema jschema = new JSchema();
+            jschema.MaxItems = -1;
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void MaxItems_ParseAsString_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'maxItems':'string'}");
+        }
+        #endregion
     }
 }

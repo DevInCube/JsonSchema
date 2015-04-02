@@ -20,6 +20,8 @@ namespace My.Json.Schema
         private double? _multipleOf;
         private int? _maxLength;
         private int? _minLength;
+        private int? _maxItems;
+        private int? _minItems;
 
         public Uri Id { get; set; }
         public JSchemaType Type { get; set; }
@@ -73,6 +75,24 @@ namespace My.Json.Schema
             }
         }
         public string Pattern { get; set; }
+        public int? MaxItems
+        {
+            get { return _maxItems; }
+            set
+            {
+                if (value < 0) throw new JSchemaException("maxItems should be greater or equal zero");
+                _maxItems = value;
+            }
+        }
+        public int? MinItems
+        {
+            get { return _minItems; }
+            set
+            {
+                if (value < 0) throw new JSchemaException("minItems should be greater or equal zero");
+                _minItems = value;
+            }
+        }
 
         public JSchema()
         {
@@ -231,6 +251,18 @@ namespace My.Json.Schema
                 if (!(t.Type == JTokenType.Integer))
                     throw new JSchemaException(t.Type.ToString());
                 jschema.MinLength = t.Value<int>();
+            }
+            if (jtoken.TryGetValue("maxItems", out t))
+            {
+                if (!(t.Type == JTokenType.Integer))
+                    throw new JSchemaException(t.Type.ToString());
+                jschema.MaxItems = t.Value<int>();
+            }
+            if (jtoken.TryGetValue("minItems", out t))
+            {
+                if (!(t.Type == JTokenType.Integer))
+                    throw new JSchemaException(t.Type.ToString());
+                jschema.MinItems = t.Value<int>();
             }
         }
 
