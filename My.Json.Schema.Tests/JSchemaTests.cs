@@ -195,6 +195,12 @@ namespace My.Json.Schema.Tests
             JSchema jschema = JSchema.Parse(@"{'type':[]}");
         }
         [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void Type_SetNotUniqueArray_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'type':['object','object']}");
+        }
+        [TestMethod]
         public void Type_SetObjectAndNullType_HasTwoTypes()
         {
             JSchema jschema = JSchema.Parse(@"{'type':['object','null']}");
@@ -223,6 +229,19 @@ namespace My.Json.Schema.Tests
         {
             JSchema jschema = JSchema.Parse(@"{
     'definitions':{'test':{'type':'string'}},
+    'properties' : { 'refTest' : {'$ref' : '#/definitions/test'}},
+}");
+            var sh = jschema.Properties["refTest"];
+            Assert.IsTrue(sh.Type.HasFlag(JSchemaType.String));
+        }
+        [TestMethod]
+        public void Reference_RsolveWithinDefinitions_ReferenceResolvedAndHasTypeString()
+        {
+            JSchema jschema = JSchema.Parse(@"{
+    'definitions':{
+        'test':{'type':'string'},
+        'test2':{ 'allOf' : [ {'$ref':'test'}, {'maxLength':10}] },
+    },
     'properties' : { 'refTest' : {'$ref' : '#/definitions/test'}},
 }");
             var sh = jschema.Properties["refTest"];
@@ -799,7 +818,117 @@ namespace My.Json.Schema.Tests
         }
         #endregion
 
+        #region additionalProperties
+        [TestMethod]
+        public void AdditionalProperties_ParseAsEmptyObject_OK()
+        {
+            JSchema jschema = JSchema.Parse(@"{additionalProperties:{}}");
+
+            Assert.IsTrue(JToken.DeepEquals(new JObject(), JObject.Parse(jschema.AdditionalProperties.ToString())));
+        }        
+        #endregion
+
         #region dependencies
+        #endregion
+
+        #region allOf
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void allOf_ParseAsObject_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'allOf':{}}");
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void allOf_ParseAsEmptyArray_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'allOf':[]}");
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]       
+        public void allOf_ParseAsOneItemStringArray_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'allOf':['string']}");
+        }
+        [TestMethod]        
+        public void allOf_ParseAsOneItemObjectArray_MatchesSchema()
+        {
+            JSchema jschema = JSchema.Parse(@"{'allOf':[{}]}");
+
+            Assert.IsTrue(JToken.DeepEquals(new JObject(), JObject.Parse(jschema.AllOf[0].ToString())));
+        }
+        #endregion
+
+        #region anyOf
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void anyOf_ParseAsObject_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'anyOf':{}}");
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void anyOf_ParseAsEmptyArray_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'anyOf':[]}");
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void anyOf_ParseAsOneItemStringArray_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'anyOf':['string']}");
+        }
+        [TestMethod]
+        public void anyOf_ParseAsOneItemObjectArray_MatchesSchema()
+        {
+            JSchema jschema = JSchema.Parse(@"{'anyOf':[{}]}");
+
+            Assert.IsTrue(JToken.DeepEquals(new JObject(), JObject.Parse(jschema.AnyOf[0].ToString())));
+        }
+        #endregion
+
+        #region oneOf
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void oneOf_ParseAsObject_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'oneOf':{}}");
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void oneOf_ParseAsEmptyArray_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'oneOf':[]}");
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void oneOf_ParseAsOneItemStringArray_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'oneOf':['string']}");
+        }
+        [TestMethod]
+        public void oneOf_ParseAsOneItemObjectArray_MatchesSchema()
+        {
+            JSchema jschema = JSchema.Parse(@"{'oneOf':[{}]}");
+
+            Assert.IsTrue(JToken.DeepEquals(new JObject(), JObject.Parse(jschema.OneOf[0].ToString())));
+        }
+        #endregion
+
+        #region not
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void not_ParseAsArray_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'not':[]}");
+        }
+        [TestMethod]        
+        public void not_ParseAsEmptyObject_Match()
+        {
+            JSchema jschema = JSchema.Parse(@"{'not':{}}");
+
+            Assert.IsTrue(JToken.DeepEquals(new JObject(), JObject.Parse(jschema.Not.ToString())));
+        }
         #endregion
     }
 }

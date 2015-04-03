@@ -129,7 +129,12 @@ namespace My.Json.Schema
         }
         public IList<string> Required { get; private set; }
         public bool AllowAdditionalProperties { get; set; }
+        public JSchema AdditionalProperties { get; set; }
         public IList<JToken> Enum { get; private set; }
+        public IList<JSchema> AllOf { get; set; }
+        public IList<JSchema> AnyOf { get; set; }
+        public IList<JSchema> OneOf { get; set; }
+        public JSchema Not { get; set; }
 
         #endregion
 
@@ -195,7 +200,10 @@ namespace My.Json.Schema
                         if (jschema.Type == JSchemaType.None)
                             jschema.Type = type;
                         else
+                        {
+                            if (jschema.Type.HasFlag(type)) throw new JSchemaException();
                             jschema.Type |= type;
+                        }
                     }
                 }
                 else throw new JSchemaException("type is " + t.Type.ToString());
@@ -370,9 +378,55 @@ namespace My.Json.Schema
                 }
                 else if (t.Type == JTokenType.Object)
                 {
-                    throw new JSchemaException("not implemented");
+                    JObject obj = t as JObject;
+                    jschema.AdditionalProperties = ParseSchema(obj, jschema);
                 }
-            }            
+            }
+            if (jtoken.TryGetValue("allOf", out t))
+            {
+                if (t.Type != JTokenType.Array) throw new JSchemaException();
+                JArray array = t as JArray;
+                if (t.Count() == 0) throw new JSchemaException();
+                jschema.AllOf = new List<JSchema>();
+                foreach (var item in array.Children())
+                {
+                    if (!(item.Type == JTokenType.Object)) throw new JSchemaException();
+                    JObject obj = item as JObject;
+                    jschema.AllOf.Add(ParseSchema(obj, jschema));
+                }
+            }
+            if (jtoken.TryGetValue("anyOf", out t))
+            {
+                if (t.Type != JTokenType.Array) throw new JSchemaException();
+                JArray array = t as JArray;
+                if (t.Count() == 0) throw new JSchemaException();
+                jschema.AnyOf = new List<JSchema>();
+                foreach (var item in array.Children())
+                {
+                    if (!(item.Type == JTokenType.Object)) throw new JSchemaException();
+                    JObject obj = item as JObject;
+                    jschema.AnyOf.Add(ParseSchema(obj, jschema));
+                }
+            }
+            if (jtoken.TryGetValue("oneOf", out t))
+            {
+                if (t.Type != JTokenType.Array) throw new JSchemaException();
+                JArray array = t as JArray;
+                if (t.Count() == 0) throw new JSchemaException();
+                jschema.OneOf = new List<JSchema>();
+                foreach (var item in array.Children())
+                {
+                    if (!(item.Type == JTokenType.Object)) throw new JSchemaException();
+                    JObject obj = item as JObject;
+                    jschema.OneOf.Add(ParseSchema(obj, jschema));
+                }
+            }
+            if (jtoken.TryGetValue("not", out t))
+            {
+                if (t.Type != JTokenType.Object) throw new JSchemaException();
+                JObject obj = t as JObject;
+                jschema.Not = ParseSchema(obj, jschema);
+            }
         }
 
         public override string ToString()
@@ -413,7 +467,16 @@ namespace My.Json.Schema
                 if (!t.IsString()) throw new JSchemaException();
                 string refStr = t.Value<string>();
 
-                if (parentSchema == null) throw new JSchemaException("$ref in root schema");
+                if (parentSchema == null)
+                {
+                    if(resolver == null)
+                        throw new JSchemaException("$ref in root schema");                
+                    else
+                    {
+                        Uri remoteUri = new Uri(refStr);
+                        return ResolveExternalReference(remoteUri, resolver);
+                    }
+                }
 
                 JSchema rootSchema = parentSchema.GetRootSchema();
                 Uri baseUri = rootSchema.Id;
@@ -490,7 +553,6 @@ namespace My.Json.Schema
             else 
                 return parentSchema.GetRootSchema();
         }
-
 
     }
 }

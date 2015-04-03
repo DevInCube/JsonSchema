@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "My.Json.Schema", "My.Json.S
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "My.Json.Schema.Tests", "My.Json.Schema.Tests\My.Json.Schema.Tests.csproj", "{62095617-9349-48D1-A0F0-1FB871F732C2}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "My.Json.Schema.TestConsole", "My.Json.Schema.TestConsole\My.Json.Schema.TestConsole.csproj", "{CE261A33-AE3E-49FF-A294-679E8782D6E0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{62095617-9349-48D1-A0F0-1FB871F732C2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{62095617-9349-48D1-A0F0-1FB871F732C2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{62095617-9349-48D1-A0F0-1FB871F732C2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CE261A33-AE3E-49FF-A294-679E8782D6E0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CE261A33-AE3E-49FF-A294-679E8782D6E0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CE261A33-AE3E-49FF-A294-679E8782D6E0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CE261A33-AE3E-49FF-A294-679E8782D6E0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

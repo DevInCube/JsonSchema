@@ -15,5 +15,6 @@ namespace My.Json.Schema.Utilities
                     || t.Type == JTokenType.Null
                     || t.Type == JTokenType.String);
         }
+
     }
 }
