@@ -13,10 +13,43 @@ namespace My.Json.Schema.Tests
 
         #region jschema_tests
         [TestMethod]
-        public void JSchema_EmptySchemaCompare_AreNotEqual()
+        public void JSchema_ParseEmptySchema_InitialStateOK()
         {
             JSchema jschema = JSchema.Parse(@"{}");
-            Assert.AreNotEqual(new JSchema(), jschema);
+
+            Assert.AreEqual(null, jschema.Id);
+            Assert.AreEqual(null, jschema.Title);
+            Assert.AreEqual(null, jschema.Description);
+            Assert.AreEqual(null, jschema.Default);
+            Assert.AreEqual(null, jschema.Format);
+            Assert.AreEqual(JSchemaType.None, jschema.Type);
+
+            Assert.IsTrue(jschema.Items.IsSchema);
+            Assert.AreNotEqual(null, jschema.Items.Schema);
+            Assert.IsFalse(jschema.Items.IsArray);
+            Assert.AreEqual(null, jschema.Items.Array);
+
+            Assert.AreNotEqual(null, jschema.Properties);
+            Assert.AreEqual(0, jschema.Properties.Count);
+            Assert.AreEqual(null, jschema.MultipleOf);
+            Assert.AreEqual(null, jschema.Maximum);
+            Assert.AreEqual(null, jschema.Minimum);
+            Assert.AreEqual(null, jschema.MaxLength);
+            Assert.AreEqual(null, jschema.MinLength);
+            Assert.AreEqual(null, jschema.MinLength);
+            Assert.AreEqual(null, jschema.MinItems);
+            Assert.AreEqual(null, jschema.MaxItems);
+            Assert.IsFalse(jschema.UniqueItems);
+            Assert.AreEqual(null, jschema.Required);
+            Assert.IsTrue(jschema.AllowAdditionalProperties, "AllowAdditionalProperties");
+            Assert.AreNotEqual(null, jschema.PatternProperties, "PatternProperties");          
+        }
+        [TestMethod]
+        public void JSchema_EmptySchemaCompare_AreNotEqual()
+        {
+            JSchema jschema = JSchema.Parse(@"{}");   
+         
+            Assert.AreNotEqual(new JSchema(), jschema);            
         }
         [TestMethod]
         [ExpectedException(typeof(ArgumentNullException), "schema")]
@@ -40,12 +73,6 @@ namespace My.Json.Schema.Tests
 
         #region id_tests
         [TestMethod]
-        public void Id_NotSet_IsNull()
-        {
-            JSchema jschema = JSchema.Parse(@"{}");
-            Assert.AreEqual(null, jschema.Id);
-        }
-        [TestMethod]
         public void Id_SetAbsoluteValidUri_IsValidAndMatches()
         {
             JSchema jschema = JSchema.Parse(@"{id:'http://x.y.z/rootschema.json#'}");
@@ -66,12 +93,7 @@ namespace My.Json.Schema.Tests
         #endregion
 
         #region title_tests
-        [TestMethod]
-        public void JSchema_ParseNoTitle_TitleIsNull()
-        {
-            JSchema jschema = JSchema.Parse(@"{}");
-            Assert.AreEqual(null, jschema.Title);
-        }
+
         [TestMethod]
         public void JSchema_ParseEmptyTitle_TitleNull()
         {
@@ -99,12 +121,7 @@ namespace My.Json.Schema.Tests
         }
         #endregion
         #region description_tests
-        [TestMethod]
-        public void JSchema_ParseNoDescription_DescriptionIsNull()
-        {
-            JSchema jschema = JSchema.Parse(@"{}");
-            Assert.AreEqual(null, jschema.Description);
-        }
+
         [TestMethod]
         public void JSchema_ParseEmptyDescription_DescriptionNull()
         {
@@ -132,12 +149,7 @@ namespace My.Json.Schema.Tests
         }
         #endregion
         #region default_tests
-        [TestMethod]
-        public void Default_NotSet_IsNull()
-        {
-            JSchema jschema = JSchema.Parse(@"{}");
-            Assert.AreEqual(null, jschema.Default);
-        }
+
         [TestMethod]
         public void Default_SetString_MatchesJValueString()
         {
@@ -152,12 +164,7 @@ namespace My.Json.Schema.Tests
         }
         #endregion
         #region format_tests
-        [TestMethod]
-        public void Format_NotSet_IsNull()
-        {
-            JSchema jschema = JSchema.Parse(@"{}");
-            Assert.AreEqual(null, jschema.Format);
-        }
+
         [TestMethod]
         public void Format_IsSet_MatchString()
         {
@@ -167,12 +174,7 @@ namespace My.Json.Schema.Tests
         #endregion
         
         #region type_tests
-        [TestMethod]
-        public void Type_NotSet_IsNoneType()
-        {
-            JSchema jschema = JSchema.Parse(@"{}");
-            Assert.AreEqual(JSchemaType.None, jschema.Type);
-        }
+
         [TestMethod]
         [ExpectedException(typeof(JSchemaException))]
         public void Type_SetStringNotAType_Throws()
@@ -281,27 +283,10 @@ namespace My.Json.Schema.Tests
         #endregion
 
         #region items_tests
-        [TestMethod]
-        public void Items_NotSet_IsEmptyJSchemaNotArray()
-        {
-            JSchema jschema = JSchema.Parse(@"{}");
 
-            Assert.IsTrue(jschema.Items.IsSchema);
-            Assert.AreNotEqual(null, jschema.Items.Schema);
-            Assert.IsFalse(jschema.Items.IsArray);
-            Assert.AreEqual(null, jschema.Items.Array);
-        }
         #endregion
 
         #region properties_tests
-        [TestMethod]
-        public void Properties_NotSet_IsEmptyArray()
-        {
-            JSchema jschema = JSchema.Parse(@"{}");
-
-            Assert.AreNotEqual(null, jschema.Properties);
-            Assert.AreEqual(0, jschema.Properties.Count);
-        }
         [TestMethod]
         public void Properties_SetEmptyObject_IsEmptyArray()
         {
@@ -320,14 +305,27 @@ namespace My.Json.Schema.Tests
         }
         #endregion
 
-        #region multipleOf_tests
+        #region patternProperties_tests
         [TestMethod]
-        public void MultipleOf_NotSet_IsNull()
+        public void patternProperties_SetEmptyObject_IsEmptyArray()
         {
-            JSchema jschema = JSchema.Parse(@"{}");
+            JSchema jschema = JSchema.Parse(@"{'patternProperties':{}}");
 
-            Assert.AreEqual(null, jschema.MultipleOf);
+            Assert.AreNotEqual(null, jschema.PatternProperties);
+            Assert.AreEqual(0, jschema.PatternProperties.Count);
         }
+        [TestMethod]
+        public void patternProperties_SetOneEmptyPropertyObject_PropertyIsInDict()
+        {
+            JSchema jschema = JSchema.Parse(@"{'patternProperties':{'test':{}}}");
+
+            Assert.AreNotEqual(null, jschema.PatternProperties["test"]);
+            Assert.AreEqual(1, jschema.PatternProperties.Count);
+        }
+        #endregion
+
+        #region multipleOf_tests
+
         [TestMethod]
         [ExpectedException(typeof(JSchemaException))]
         public void MultipleOf_SetAsString_ThrowError()
@@ -370,13 +368,7 @@ namespace My.Json.Schema.Tests
         #endregion
 
         #region maximum_tests
-        [TestMethod]
-        public void Maximum_NotSet_IsNull()
-        {
-            JSchema jschema = JSchema.Parse(@"{}");
 
-            Assert.AreEqual(null, jschema.Maximum);
-        }
         [TestMethod]
         public void Maximum_ParseAsNumber_MatchesDoubleNumber()
         {
@@ -411,7 +403,6 @@ namespace My.Json.Schema.Tests
         {
             JSchema jschema = JSchema.Parse(@"{}");
 
-            Assert.AreEqual(null, jschema.Minimum);
         }
         [TestMethod]
         public void Minimum_ParseAsNumber_MatchesDoubleNumber()
@@ -442,13 +433,7 @@ namespace My.Json.Schema.Tests
         #endregion
 
         #region maxLength_tests
-        [TestMethod]
-        public void MaxLength_NotSet_IsNull()
-        {
-            JSchema jschema = JSchema.Parse(@"{}");
 
-            Assert.AreEqual(null, jschema.MaxLength);
-        }
         [TestMethod]
         public void MaxLength_ParseAsPositiveInteger_MatchesInteger()
         {
@@ -484,13 +469,7 @@ namespace My.Json.Schema.Tests
         #endregion
 
         #region minLength_tests
-        [TestMethod]
-        public void MinLength_NotSet_IsNull()
-        {
-            JSchema jschema = JSchema.Parse(@"{}");
 
-            Assert.AreEqual(null, jschema.MinLength);
-        }
         [TestMethod]
         public void MinLength_ParseAsPositiveInteger_MatchesInteger()
         {
@@ -527,13 +506,6 @@ namespace My.Json.Schema.Tests
 
         #region pattern
         [TestMethod]
-        public void Pattern_NotSet_IsNull()
-        {
-            JSchema jschema = JSchema.Parse(@"{}");
-
-            Assert.AreEqual(null, jschema.MinLength);
-        }
-        [TestMethod]
         public void Pattern_ParseAsString_MatchesString()
         {
             JSchema jschema = JSchema.Parse(@"{'pattern':'test'}");
@@ -549,13 +521,7 @@ namespace My.Json.Schema.Tests
         #endregion
 
         #region minItems_tests
-        [TestMethod]
-        public void MinItems_NotSet_IsNull()
-        {
-            JSchema jschema = JSchema.Parse(@"{}");
 
-            Assert.AreEqual(null, jschema.MinItems);
-        }
         [TestMethod]
         public void MinItems_ParseAsPositiveInteger_MatchesInteger()
         {
@@ -591,13 +557,7 @@ namespace My.Json.Schema.Tests
         #endregion
 
         #region maxItems_tests
-        [TestMethod]
-        public void MaxItems_NotSet_IsNull()
-        {
-            JSchema jschema = JSchema.Parse(@"{}");
 
-            Assert.AreEqual(null, jschema.MaxItems);
-        }
         [TestMethod]
         public void MaxItems_ParseAsPositiveInteger_MatchesInteger()
         {
@@ -618,7 +578,7 @@ namespace My.Json.Schema.Tests
             JSchema jschema = JSchema.Parse(@"{'maxItems':-1}");
         }
         [TestMethod]
-        [ExpectedException(typeof(JSchemaException))]
+        [ExpectedException(typeof(JSchemaException))]        
         public void MaxItems_SetAsNegativeInteger_ThrowsError()
         {
             JSchema jschema = new JSchema();
@@ -629,6 +589,164 @@ namespace My.Json.Schema.Tests
         public void MaxItems_ParseAsString_ThrowsError()
         {
             JSchema jschema = JSchema.Parse(@"{'maxItems':'string'}");
+        }
+        #endregion
+
+        #region minProperties_tests
+        [TestMethod]
+        public void MinProperties_NotSet_IsNull()
+        {
+            JSchema jschema = JSchema.Parse(@"{}");
+
+            Assert.AreEqual(null, jschema.MinProperties);
+        }
+        [TestMethod]
+        public void MinProperties_ParseAsPositiveInteger_MatchesInteger()
+        {
+            JSchema jschema = JSchema.Parse(@"{'minProperties':2}");
+
+            Assert.AreEqual(2, jschema.MinProperties);
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void MinProperties_ParseAsNumber_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'minProperties':2.1}");
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void MinProperties_ParseAsNegativeInteger_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'minProperties':-1}");
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void MinProperties_SetAsNegativeInteger_ThrowsError()
+        {
+            JSchema jschema = new JSchema();
+            jschema.MinProperties = -1;
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void MinProperties_ParseAsString_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'minProperties':'string'}");
+        }
+        #endregion
+
+        #region maxProperties_tests
+        [TestMethod]
+        public void MaxProperties_NotSet_IsNull()
+        {
+            JSchema jschema = JSchema.Parse(@"{}");
+
+            Assert.AreEqual(null, jschema.MaxProperties);
+        }
+        [TestMethod]
+        public void MaxProperties_ParseAsPositiveInteger_MatchesInteger()
+        {
+            JSchema jschema = JSchema.Parse(@"{'maxProperties':2}");
+
+            Assert.AreEqual(2, jschema.MaxProperties);
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void MaxProperties_ParseAsNumber_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'maxProperties':2.1}");
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void MaxProperties_ParseAsNegativeInteger_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'maxProperties':-1}");
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void MaxProperties_SetAsNegativeInteger_ThrowsError()
+        {
+            JSchema jschema = new JSchema();
+            jschema.MaxProperties = -1;
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void MaxProperties_ParseAsString_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'maxProperties':'string'}");
+        }
+        #endregion
+
+        #region uniqueItems
+        [TestMethod]
+        public void UniqueItems_NotSet_IsFalse()
+        {
+            JSchema jschema = JSchema.Parse(@"{}");
+
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void UniqueItems_ParseAsString_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'uniqueItems':'string'}");
+        }
+        [TestMethod]
+        public void UniqueItems_ParseAsBoolean_OK()
+        {
+            JSchema jschema = JSchema.Parse(@"{uniqueItems:true}");
+
+            Assert.AreEqual(true, jschema.UniqueItems);
+        }
+        #endregion
+
+        #region required
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void required_ParseAsString_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'required':'string'}");
+        }
+        [TestMethod]
+        public void required_ParseOneItemArrayString_OK()
+        {
+            JSchema jschema = JSchema.Parse(@"{required:['string']}");
+
+            Assert.AreEqual(1, jschema.Required.Count);
+            Assert.AreEqual("string", jschema.Required[0]);
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void required_ParseNotUniqueStringArray_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{required:['string','string']}");
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void required_ParseIntegerArray_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{required:[0]}");
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void required_ParseEmptyArray_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{required:[]}");
+        }
+        #endregion
+
+        #region AllowAdditionalProperties
+        [TestMethod]
+        public void AllowAdditionalProperties_ParseAsFalseBool_OK()
+        {
+            JSchema jschema = JSchema.Parse(@"{additionalProperties:false}");
+
+            Assert.IsFalse(jschema.AllowAdditionalProperties);
+        }
+        [TestMethod]
+        public void AllowAdditionalProperties_ParseAsTrueBool_OK()
+        {
+            JSchema jschema = JSchema.Parse(@"{additionalProperties:true}");
+
+            Assert.IsTrue(jschema.AllowAdditionalProperties);
         }
         #endregion
     }

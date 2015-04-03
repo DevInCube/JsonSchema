@@ -15,13 +15,18 @@ namespace My.Json.Schema
         private JSchemaResolver resolver;
         private JSchema parentSchema;
         private JObject schema;
-        private ItemsSchema _items;        
+        private ItemsSchema _items;
         private IDictionary<string, JSchema> _properties;
+        private IDictionary<string, JSchema> _pattternProperties;
         private double? _multipleOf;
         private int? _maxLength;
         private int? _minLength;
         private int? _maxItems;
         private int? _minItems;
+        private int? _maxProperties;
+        private int? _minProperties;
+
+        #region public properties
 
         public Uri Id { get; set; }
         public JSchemaType Type { get; set; }
@@ -33,6 +38,16 @@ namespace My.Json.Schema
                 return _properties;
             }
         }
+        public IDictionary<string, JSchema> PatternProperties
+        {
+            get
+            {
+                if (_pattternProperties == null)
+                    _pattternProperties = new Dictionary<string, JSchema>();
+                return _pattternProperties;
+            }
+        }
+       
         public string Title { get; set; }
         public string Description { get; set; }
         public object Default { get; set; }
@@ -93,13 +108,37 @@ namespace My.Json.Schema
                 _minItems = value;
             }
         }
+        public bool UniqueItems { get; set; }
+        public int? MaxProperties
+        {
+            get { return _maxProperties; }
+            set
+            {
+                if (value < 0) throw new JSchemaException("maxProperties should be greater or equal zero");
+                _maxProperties = value;
+            }
+        }
+        public int? MinProperties
+        {
+            get { return _minProperties; }
+            set
+            {
+                if (value < 0) throw new JSchemaException("minProperties should be greater or equal zero");
+                _minProperties = value;
+            }
+        }
+        public IList<string> Required { get; private set; }
+        public bool AllowAdditionalProperties { get; set; }
+
+        #endregion
 
         public JSchema()
         {
             schema = new JObject();
+            AllowAdditionalProperties = true;
         }
 
-        public JSchema(JObject jObject)
+        public JSchema(JObject jObject) : this()
         {
             this.schema = jObject;
             Load(this.schema);
@@ -208,6 +247,18 @@ namespace My.Json.Schema
                     jschema.Properties[prop.Name] = ParseSchema(objVal, jschema);
                 }
             }
+            if (jtoken.TryGetValue("patternProperties", out t))
+            {
+                if (t.Type != JTokenType.Object) throw new JSchemaException();
+                JObject props = t as JObject;
+                foreach (var prop in props.Properties())
+                {
+                    JToken val = prop.Value;
+                    if (!(val.Type == JTokenType.Object)) throw new JSchemaException();
+                    JObject objVal = val as JObject;
+                    jschema.PatternProperties[prop.Name] = ParseSchema(objVal, jschema);
+                }
+            }
             if (jtoken.TryGetValue("multipleOf", out t))
             {
                 if (!(t.Type == JTokenType.Float || t.Type == JTokenType.Integer))
@@ -264,6 +315,51 @@ namespace My.Json.Schema
                     throw new JSchemaException(t.Type.ToString());
                 jschema.MinItems = t.Value<int>();
             }
+            if (jtoken.TryGetValue("uniqueItems", out t))
+            {
+                if (!(t.Type == JTokenType.Boolean))
+                    throw new JSchemaException(t.Type.ToString());
+                jschema.UniqueItems = t.Value<bool>();
+            }
+            if (jtoken.TryGetValue("maxProperties", out t))
+            {
+                if (!(t.Type == JTokenType.Integer))
+                    throw new JSchemaException(t.Type.ToString());
+                jschema.MaxProperties = t.Value<int>();
+            }
+            if (jtoken.TryGetValue("minProperties", out t))
+            {
+                if (!(t.Type == JTokenType.Integer))
+                    throw new JSchemaException(t.Type.ToString());
+                jschema.MinProperties = t.Value<int>();
+            }
+            if (jtoken.TryGetValue("required", out t))
+            {
+                if (t.Type != JTokenType.Array) throw new JSchemaException();
+                JArray array = t as JArray;
+                if (t.Count() == 0) throw new JSchemaException();
+                jschema.Required = new List<string>();
+                foreach (var req in array.Children())
+                {
+                    if (!(req.Type == JTokenType.String)) throw new JSchemaException();
+                    string requiredProp = req.Value<string>();
+                    if (jschema.Required.Contains(requiredProp)) throw new JSchemaException("already contains");
+                    jschema.Required.Add(requiredProp);
+                }
+            }
+            if (jtoken.TryGetValue("additionalProperties", out t))
+            {
+                if (!(t.Type == JTokenType.Boolean || t.Type == JTokenType.Object)) throw new JSchemaException();
+                if (t.Type == JTokenType.Boolean)
+                {
+                    bool allow = t.Value<bool>();
+                    this.AllowAdditionalProperties = allow;
+                }
+                else if (t.Type == JTokenType.Object)
+                {
+                    throw new JSchemaException("not implemented");
+                }
+            }            
         }
 
         public override string ToString()
@@ -381,6 +477,6 @@ namespace My.Json.Schema
             else 
                 return parentSchema.GetRootSchema();
         }
-        
+
     }
 }
