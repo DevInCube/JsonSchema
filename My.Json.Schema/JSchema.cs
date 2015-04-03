@@ -129,6 +129,7 @@ namespace My.Json.Schema
         }
         public IList<string> Required { get; private set; }
         public bool AllowAdditionalProperties { get; set; }
+        public IList<JToken> Enum { get; private set; }
 
         #endregion
 
@@ -347,6 +348,18 @@ namespace My.Json.Schema
                     jschema.Required.Add(requiredProp);
                 }
             }
+            if (jtoken.TryGetValue("enum", out t))
+            {
+                if (t.Type != JTokenType.Array) throw new JSchemaException();
+                JArray array = t as JArray;
+                if (t.Count() == 0) throw new JSchemaException();
+                jschema.Enum = new List<JToken>();
+                foreach (var enumItem in array.Children())
+                {
+                    if (jschema.Enum.Contains(enumItem)) throw new JSchemaException("already contains");
+                    jschema.Enum.Add(enumItem);
+                }
+            }
             if (jtoken.TryGetValue("additionalProperties", out t))
             {
                 if (!(t.Type == JTokenType.Boolean || t.Type == JTokenType.Object)) throw new JSchemaException();
@@ -477,6 +490,7 @@ namespace My.Json.Schema
             else 
                 return parentSchema.GetRootSchema();
         }
+
 
     }
 }

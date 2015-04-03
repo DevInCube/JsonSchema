@@ -41,6 +41,7 @@ namespace My.Json.Schema.Tests
             Assert.AreEqual(null, jschema.MaxItems);
             Assert.IsFalse(jschema.UniqueItems);
             Assert.AreEqual(null, jschema.Required);
+            Assert.AreEqual(null, jschema.Enum);
             Assert.IsTrue(jschema.AllowAdditionalProperties, "AllowAdditionalProperties");
             Assert.AreNotEqual(null, jschema.PatternProperties, "PatternProperties");          
         }
@@ -733,6 +734,54 @@ namespace My.Json.Schema.Tests
         }
         #endregion
 
+        #region enum
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void enum_ParseAsString_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{'enum':'string'}");
+        }
+        [TestMethod]
+        public void enum_ParseOneItemArrayString_OK()
+        {
+            JSchema jschema = JSchema.Parse(@"{enum:['string']}");
+
+            Assert.AreEqual(1, jschema.Enum.Count);
+            Assert.AreEqual("string", jschema.Enum[0]);
+        }
+        [TestMethod]
+        public void enum_ParseItemsArrayNumber_OK()
+        {
+            JSchema jschema = JSchema.Parse(@"{enum:[0,2]}");
+
+            Assert.AreEqual(2, jschema.Enum.Count);
+            Assert.AreEqual(0, jschema.Enum[0]);
+            Assert.AreEqual(2, jschema.Enum[1]);
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void enum_ParseNotUniqueStringArray_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{enum:['string','string']}");
+        }
+        [TestMethod]
+        public void enum_ParseArrayWithDiffTypes_ShouldMatch()
+        {
+            JSchema jschema = JSchema.Parse(@"{enum:['string',0, {}]}");
+
+            Assert.AreEqual(3, jschema.Enum.Count);
+            Assert.AreEqual("string", jschema.Enum[0]);
+            Assert.AreEqual(0, jschema.Enum[1]);
+            Assert.IsTrue(JToken.DeepEquals(new JObject(), jschema.Enum[2]));
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void enum_ParseEmptyArray_ThrowsError()
+        {
+            JSchema jschema = JSchema.Parse(@"{enum:[]}");
+        }
+        #endregion
+
         #region AllowAdditionalProperties
         [TestMethod]
         public void AllowAdditionalProperties_ParseAsFalseBool_OK()
@@ -748,6 +797,9 @@ namespace My.Json.Schema.Tests
 
             Assert.IsTrue(jschema.AllowAdditionalProperties);
         }
+        #endregion
+
+        #region dependencies
         #endregion
     }
 }
