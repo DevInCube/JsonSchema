@@ -235,14 +235,14 @@ namespace My.Json.Schema.Tests
             Assert.IsTrue(sh.Type.HasFlag(JSchemaType.String));
         }
         [TestMethod]
-        public void Reference_RsolveWithinDefinitions_ReferenceResolvedAndHasTypeString()
+        public void Reference_ResolveWithinDefinitions_ReferenceResolvedAndHasTypeString()
         {
             JSchema jschema = JSchema.Parse(@"{
     'definitions':{
         'test':{'type':'string'},
-        'test2':{ 'allOf' : [ {'$ref':'test'}, {'maxLength':10}] },
+        'test2':{ '$ref':'test' },
     },
-    'properties' : { 'refTest' : {'$ref' : '#/definitions/test'}},
+    'properties' : { 'refTest' : {'$ref' : '#/definitions/test2'}},
 }");
             var sh = jschema.Properties["refTest"];
             Assert.IsTrue(sh.Type.HasFlag(JSchemaType.String));
@@ -300,6 +300,20 @@ namespace My.Json.Schema.Tests
             var sh = jschema.Properties["refTest"];
             Assert.IsTrue(sh.Type.HasFlag(JSchemaType.Boolean));
         }
+        [TestMethod]
+        public void Reference_Loop_PointersEquals()
+        {
+            string shStr = @"{
+    'properties': {
+        'loop': { '$ref' : '#' }
+    },
+
+}";
+            JSchema jschema = JSchema.Parse(shStr);
+            var loop = jschema.Properties["loop"];
+            Assert.AreEqual(jschema, loop);
+        }
+
         #endregion
 
         #region items_tests

@@ -16,5 +16,11 @@ namespace My.Json.Schema.Utilities
                     || t.Type == JTokenType.String);
         }
 
+        public static JToken GetRootParent(this JToken token)
+        {
+            while (token.Parent != null)
+                token = token.Parent;
+            return token;
+        }
     }
 }

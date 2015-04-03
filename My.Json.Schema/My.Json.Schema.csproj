@@ -46,6 +46,7 @@
     <Compile Include="JSchema.cs" />
     <Compile Include="JSchemaException.cs" />
     <Compile Include="JSchemaPreloadedResolver.cs" />
+    <Compile Include="JSchemaReader.cs" />
     <Compile Include="JSchemaResolver.cs" />
     <Compile Include="JSchemaType.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

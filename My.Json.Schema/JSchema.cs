@@ -13,7 +13,6 @@ namespace My.Json.Schema
     {
 
         private JSchemaResolver resolver;
-        private JSchema parentSchema;
         private JObject schema;
         private ItemsSchema _items;
         private IDictionary<string, JSchema> _properties;
@@ -25,6 +24,8 @@ namespace My.Json.Schema
         private int? _minItems;
         private int? _maxProperties;
         private int? _minProperties;
+        private IList<JToken> _enum;
+        private IList<string> _required;
 
         #region public properties
 
@@ -127,10 +128,26 @@ namespace My.Json.Schema
                 _minProperties = value;
             }
         }
-        public IList<string> Required { get; private set; }
+        public IList<string> Required
+        {
+            get
+            {
+                if (_required == null)
+                    _required = new List<string>();
+                return _required;
+            }
+        }
         public bool AllowAdditionalProperties { get; set; }
         public JSchema AdditionalProperties { get; set; }
-        public IList<JToken> Enum { get; private set; }
+        public IList<JToken> Enum
+        {
+            get
+            {
+                if (_enum == null)
+                    _enum = new List<JToken>();
+                return _enum;
+            }
+        }
         public IList<JSchema> AllOf { get; set; }
         public IList<JSchema> AnyOf { get; set; }
         public IList<JSchema> OneOf { get; set; }
@@ -140,294 +157,9 @@ namespace My.Json.Schema
 
         public JSchema()
         {
-            schema = new JObject();
+            schema = new JObject();            
             AllowAdditionalProperties = true;
-        }
-
-        public JSchema(JObject jObject) : this()
-        {
-            this.schema = jObject;
-            Load(this.schema);
-        }              
-
-        private void Load(JObject jtoken)
-        {
-            JSchema jschema = this;
-            JToken t;
-            if (jtoken.TryGetValue("id", out t))
-            {
-                if (!t.IsString())
-                    throw new JSchemaException(t.Type.ToString());
-                jschema.Id = new Uri(t.Value<string>());
-            }
-            if (jtoken.TryGetValue("title", out t))
-            {
-                if (!t.IsString())
-                    throw new JSchemaException(t.Type.ToString());
-                jschema.Title = t.Value<string>();
-            }
-            if (jtoken.TryGetValue("description", out t))
-            {
-                if (!t.IsString())
-                    throw new JSchemaException(t.Type.ToString());
-                jschema.Description = t.Value<string>();
-            }
-            if (jtoken.TryGetValue("default", out t))
-            {
-                jschema.Default = t;
-            }
-            if (jtoken.TryGetValue("format", out t))
-            {
-                if (!t.IsString())
-                    throw new JSchemaException(t.Type.ToString());
-                jschema.Format = t.Value<string>();
-            }
-            if (jtoken.TryGetValue("type", out t))
-            {
-                if (t.Type == JTokenType.String)
-                {
-                    jschema.Type = JSchemaTypeHelpers.ParseType(t.Value<string>());
-                }
-                else if (t.Type == JTokenType.Array)
-                {
-                    JEnumerable<JToken> array = t.Value<JArray>().Children();
-                    if (array.Count() == 0) throw new JSchemaException();
-                    foreach (var arrItem in array)
-                    {
-                        if (arrItem.Type != JTokenType.String)
-                            throw new JSchemaException();
-                        JSchemaType type = JSchemaTypeHelpers.ParseType(arrItem.Value<string>());
-                        if (jschema.Type == JSchemaType.None)
-                            jschema.Type = type;
-                        else
-                        {
-                            if (jschema.Type.HasFlag(type)) throw new JSchemaException();
-                            jschema.Type |= type;
-                        }
-                    }
-                }
-                else throw new JSchemaException("type is " + t.Type.ToString());
-            }
-            if (jtoken.TryGetValue("pattern", out t))
-            {
-                if (!t.IsString())
-                    throw new JSchemaException(t.Type.ToString());
-                jschema.Pattern = t.Value<string>();
-            }
-
-            if (jtoken.TryGetValue("items", out t))
-            {
-                if (t.Type == JTokenType.Undefined
-                    || t.Type == JTokenType.Null)
-                {
-                    jschema._items = new ItemsSchema(new JSchema());
-                }
-                else if (t.Type == JTokenType.Object)
-                {
-                    JObject obj = t as JObject;
-                    jschema._items = new ItemsSchema(ParseSchema(obj, jschema));
-                }
-                else if (t.Type == JTokenType.Array)
-                {
-                    IList<JSchema> schemas = new List<JSchema>();
-                    foreach (var jsh in (t as JArray).Children())
-                    {
-                        if (jsh.Type != JTokenType.Object) throw new JSchemaException();
-                        JObject jobj = jsh as JObject;
-                        schemas.Add(ParseSchema(jobj, jschema));
-                    }
-                    jschema._items = new ItemsSchema(schemas);
-                }
-                else throw new JSchemaException("items is " + t.Type.ToString());
-            }
-            else
-            {
-                jschema._items = new ItemsSchema(new JSchema());
-            }
-            if (jtoken.TryGetValue("properties", out t))
-            {
-                if (t.Type != JTokenType.Object) throw new JSchemaException();
-                JObject props = t as JObject;
-                foreach (var prop in props.Properties())
-                {
-                    JToken val = prop.Value;
-                    if (!(val.Type == JTokenType.Object)) throw new JSchemaException();
-                    JObject objVal = val as JObject;
-                    jschema.Properties[prop.Name] = ParseSchema(objVal, jschema);
-                }
-            }
-            if (jtoken.TryGetValue("patternProperties", out t))
-            {
-                if (t.Type != JTokenType.Object) throw new JSchemaException();
-                JObject props = t as JObject;
-                foreach (var prop in props.Properties())
-                {
-                    JToken val = prop.Value;
-                    if (!(val.Type == JTokenType.Object)) throw new JSchemaException();
-                    JObject objVal = val as JObject;
-                    jschema.PatternProperties[prop.Name] = ParseSchema(objVal, jschema);
-                }
-            }
-            if (jtoken.TryGetValue("multipleOf", out t))
-            {
-                if (!(t.Type == JTokenType.Float || t.Type == JTokenType.Integer))
-                    throw new JSchemaException(t.Type.ToString());
-                jschema.MultipleOf = t.Value<double>();
-            }
-            if (jtoken.TryGetValue("maximum", out t))
-            {
-                if (!(t.Type == JTokenType.Float || t.Type == JTokenType.Integer))
-                    throw new JSchemaException(t.Type.ToString());
-                jschema.Maximum = t.Value<double>();
-            }
-            if (jtoken.TryGetValue("minimum", out t))
-            {
-                if (!(t.Type == JTokenType.Float || t.Type == JTokenType.Integer))
-                    throw new JSchemaException(t.Type.ToString());
-                jschema.Minimum = t.Value<double>();
-            }
-            if (jtoken.TryGetValue("exclusiveMaximum", out t))
-            {
-                if (!(t.Type == JTokenType.Boolean))
-                    throw new JSchemaException(t.Type.ToString());
-                if (jschema.Maximum == null) throw new JSchemaException("maximum not set");
-                jschema.ExclusiveMaximum = t.Value<bool>();
-            }
-            if (jtoken.TryGetValue("exclusiveMinimum", out t))
-            {
-                if (!(t.Type == JTokenType.Boolean))
-                    throw new JSchemaException(t.Type.ToString());
-                if (jschema.Minimum == null) throw new JSchemaException("minimum not set");
-                jschema.ExclusiveMinimum = t.Value<bool>();
-            }
-            if (jtoken.TryGetValue("maxLength", out t))
-            {
-                if (!(t.Type == JTokenType.Integer))
-                    throw new JSchemaException(t.Type.ToString());
-                jschema.MaxLength = t.Value<int>();
-            }
-            if (jtoken.TryGetValue("minLength", out t))
-            {
-                if (!(t.Type == JTokenType.Integer))
-                    throw new JSchemaException(t.Type.ToString());
-                jschema.MinLength = t.Value<int>();
-            }
-            if (jtoken.TryGetValue("maxItems", out t))
-            {
-                if (!(t.Type == JTokenType.Integer))
-                    throw new JSchemaException(t.Type.ToString());
-                jschema.MaxItems = t.Value<int>();
-            }
-            if (jtoken.TryGetValue("minItems", out t))
-            {
-                if (!(t.Type == JTokenType.Integer))
-                    throw new JSchemaException(t.Type.ToString());
-                jschema.MinItems = t.Value<int>();
-            }
-            if (jtoken.TryGetValue("uniqueItems", out t))
-            {
-                if (!(t.Type == JTokenType.Boolean))
-                    throw new JSchemaException(t.Type.ToString());
-                jschema.UniqueItems = t.Value<bool>();
-            }
-            if (jtoken.TryGetValue("maxProperties", out t))
-            {
-                if (!(t.Type == JTokenType.Integer))
-                    throw new JSchemaException(t.Type.ToString());
-                jschema.MaxProperties = t.Value<int>();
-            }
-            if (jtoken.TryGetValue("minProperties", out t))
-            {
-                if (!(t.Type == JTokenType.Integer))
-                    throw new JSchemaException(t.Type.ToString());
-                jschema.MinProperties = t.Value<int>();
-            }
-            if (jtoken.TryGetValue("required", out t))
-            {
-                if (t.Type != JTokenType.Array) throw new JSchemaException();
-                JArray array = t as JArray;
-                if (t.Count() == 0) throw new JSchemaException();
-                jschema.Required = new List<string>();
-                foreach (var req in array.Children())
-                {
-                    if (!(req.Type == JTokenType.String)) throw new JSchemaException();
-                    string requiredProp = req.Value<string>();
-                    if (jschema.Required.Contains(requiredProp)) throw new JSchemaException("already contains");
-                    jschema.Required.Add(requiredProp);
-                }
-            }
-            if (jtoken.TryGetValue("enum", out t))
-            {
-                if (t.Type != JTokenType.Array) throw new JSchemaException();
-                JArray array = t as JArray;
-                if (t.Count() == 0) throw new JSchemaException();
-                jschema.Enum = new List<JToken>();
-                foreach (var enumItem in array.Children())
-                {
-                    if (jschema.Enum.Contains(enumItem)) throw new JSchemaException("already contains");
-                    jschema.Enum.Add(enumItem);
-                }
-            }
-            if (jtoken.TryGetValue("additionalProperties", out t))
-            {
-                if (!(t.Type == JTokenType.Boolean || t.Type == JTokenType.Object)) throw new JSchemaException();
-                if (t.Type == JTokenType.Boolean)
-                {
-                    bool allow = t.Value<bool>();
-                    this.AllowAdditionalProperties = allow;
-                }
-                else if (t.Type == JTokenType.Object)
-                {
-                    JObject obj = t as JObject;
-                    jschema.AdditionalProperties = ParseSchema(obj, jschema);
-                }
-            }
-            if (jtoken.TryGetValue("allOf", out t))
-            {
-                if (t.Type != JTokenType.Array) throw new JSchemaException();
-                JArray array = t as JArray;
-                if (t.Count() == 0) throw new JSchemaException();
-                jschema.AllOf = new List<JSchema>();
-                foreach (var item in array.Children())
-                {
-                    if (!(item.Type == JTokenType.Object)) throw new JSchemaException();
-                    JObject obj = item as JObject;
-                    jschema.AllOf.Add(ParseSchema(obj, jschema));
-                }
-            }
-            if (jtoken.TryGetValue("anyOf", out t))
-            {
-                if (t.Type != JTokenType.Array) throw new JSchemaException();
-                JArray array = t as JArray;
-                if (t.Count() == 0) throw new JSchemaException();
-                jschema.AnyOf = new List<JSchema>();
-                foreach (var item in array.Children())
-                {
-                    if (!(item.Type == JTokenType.Object)) throw new JSchemaException();
-                    JObject obj = item as JObject;
-                    jschema.AnyOf.Add(ParseSchema(obj, jschema));
-                }
-            }
-            if (jtoken.TryGetValue("oneOf", out t))
-            {
-                if (t.Type != JTokenType.Array) throw new JSchemaException();
-                JArray array = t as JArray;
-                if (t.Count() == 0) throw new JSchemaException();
-                jschema.OneOf = new List<JSchema>();
-                foreach (var item in array.Children())
-                {
-                    if (!(item.Type == JTokenType.Object)) throw new JSchemaException();
-                    JObject obj = item as JObject;
-                    jschema.OneOf.Add(ParseSchema(obj, jschema));
-                }
-            }
-            if (jtoken.TryGetValue("not", out t))
-            {
-                if (t.Type != JTokenType.Object) throw new JSchemaException();
-                JObject obj = t as JObject;
-                jschema.Not = ParseSchema(obj, jschema);
-            }
-        }
+        }   
 
         public override string ToString()
         {
@@ -441,7 +173,8 @@ namespace My.Json.Schema
 
             JObject jtoken = JObject.Parse(json);
 
-            return ParseSchema(jtoken, null);
+            JSchemaReader reader = new JSchemaReader();
+            return reader.ReadSchema(jtoken);
         }
 
         public static JSchema Parse(string json, JSchemaResolver resolver)
@@ -451,108 +184,10 @@ namespace My.Json.Schema
 
             JObject jtoken = JObject.Parse(json);
 
-            return ParseSchema(jtoken, null, resolver);
+            JSchemaReader reader = new JSchemaReader();
+            return reader.ReadSchema(jtoken, resolver);
         }
-
-        internal static JSchema ParseSchema(
-            JObject jObject, 
-            JSchema parentSchema, 
-            JSchemaResolver resolver = null)
-        {
-            if (jObject == null) throw new ArgumentNullException("jObject");
-
-            JToken t;
-            if (jObject.TryGetValue("$ref", out t))
-            {
-                if (!t.IsString()) throw new JSchemaException();
-                string refStr = t.Value<string>();
-
-                if (parentSchema == null)
-                {
-                    if(resolver == null)
-                        throw new JSchemaException("$ref in root schema");                
-                    else
-                    {
-                        Uri remoteUri = new Uri(refStr);
-                        return ResolveExternalReference(remoteUri, resolver);
-                    }
-                }
-
-                JSchema rootSchema = parentSchema.GetRootSchema();
-                Uri baseUri = rootSchema.Id;
-
-                if (!refStr.StartsWith("#") && baseUri == null) 
-                    throw new JSchemaException("root id was not provided");
-
-                Uri idUri;
-                try
-                {
-                    idUri = new Uri(refStr);
-                    var host = idUri.Host;
-                }
-                catch (UriFormatException)
-                {
-                    idUri = new Uri(baseUri, refStr);
-                }
-
-                JSchema refSchema = null;
-
-                if (idUri.Host.Equals(baseUri.Host)
-                    && idUri.AbsolutePath.Equals(baseUri.AbsolutePath))
-                {
-                    refSchema = ResolveInternalReference(idUri, rootSchema);
-                }
-                else
-                {
-                    refSchema = ResolveExternalReference(idUri, rootSchema.resolver);
-                }
-               
-                refSchema.parentSchema = parentSchema;
-                return refSchema;
-            }
-            else
-            {
-                var schema = new JSchema();
-                schema.resolver = resolver;
-                schema.Load(jObject);
-                schema.parentSchema = parentSchema;
-                return schema;
-            }
-        }
-
-        internal static JSchema ResolveInternalReference(Uri newUri, JSchema schema)
-        {
-            string fragment = newUri.Fragment.Remove(0, 1);
-            string[] props = fragment.Split(new char[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
-
-            JObject obj = schema.schema;
-            foreach(string propName in props)
-            {
-                JToken propVal;
-                if (!obj.TryGetValue(propName, out propVal)) throw new JSchemaException("no property named " + propName);                
-                if (propVal.Type == JTokenType.Object) 
-                    obj = propVal as JObject;
-                else
-                    throw new JSchemaException("property value is not an object");
-            }
-            return new JSchema(obj);
-        }
-
-        internal static JSchema ResolveExternalReference(Uri newUri, JSchemaResolver resolver)
-        {
-            if (resolver == null) throw new JSchemaException("can't resolve external schema");
-            JObject obj = JObject.Load(new JsonTextReader(new StreamReader(resolver.GetSchemaResource(newUri))));
-            JSchema schema = new JSchema(obj);
-            return ResolveInternalReference(newUri, schema);
-        }
-
-        public JSchema GetRootSchema()
-        {
-            if (parentSchema == null)
-                return this;
-            else 
-                return parentSchema.GetRootSchema();
-        }
+       
 
     }
 }
