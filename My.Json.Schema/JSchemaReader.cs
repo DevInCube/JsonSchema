@@ -121,7 +121,9 @@ namespace My.Json.Schema
                 if (token is JObject)
                 {
                     JObject obj = token as JObject;
-                    if (!obj.TryGetValue(propName, out propVal)) throw new JSchemaException("no property named " + propName);
+                    var unescapedPropName = propName.Replace("~1", "/").Replace("~0", "~").Replace("%25","%");
+                    if (!obj.TryGetValue(unescapedPropName, out propVal)) 
+                        throw new JSchemaException("no property named " + propName);
                 }
                 else if (token is JArray)
                 {
