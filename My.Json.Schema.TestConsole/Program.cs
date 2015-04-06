@@ -19,6 +19,18 @@ namespace My.Json.Schema.TestConsole
             string testsDraft4Dir = "Resources/tests/draft4";
             var draft4Tests = LoadTests(testsDraft4Dir);
 
+            string testsOptionalDraft4Dir = "Resources/tests/draft4/optional";
+            var draft4OptionalTests = LoadTests(testsOptionalDraft4Dir);
+
+            Console.WriteLine("MAIN TESTS ====================");
+            RunTests(draft4Tests, resolver);
+            Console.WriteLine(Environment.NewLine + "OPTIONAL TESTS ====================");
+            RunTests(draft4OptionalTests, resolver);
+            Console.ReadKey(true);         
+        }
+
+        private static void RunTests(List<TestPackage> draft4Tests, JSchemaResolver resolver)
+        {
             int successCount = 0;
             int failedCount = 0;
             int exceptionCount = 0;
@@ -41,7 +53,7 @@ namespace My.Json.Schema.TestConsole
                     builder.AppendLine("Test: " + test.Description);
                     foreach (TestCase testCase in test.Cases)
                     {
-                        if (testCase.Description.Equals("valid definition schema"))
+                        if (testCase.Description.Equals("a valid date-time string"))
                         {
 
                         }
@@ -50,7 +62,7 @@ namespace My.Json.Schema.TestConsole
                         {
                             schema = JSchema.Parse(test.Schema.ToString(), resolver);
                         }
-                        catch(Exception e)
+                        catch (Exception e)
                         {
                             exceptionCount++;
                             testExceptionCount++;
@@ -60,7 +72,7 @@ namespace My.Json.Schema.TestConsole
                         }
 
                         bool result = testCase.Data.IsValid(schema);
-                       
+
                         bool success = (result == testCase.Valid);
                         if (!success)
                         {
@@ -89,7 +101,6 @@ namespace My.Json.Schema.TestConsole
             Console.WriteLine("SUCCESS: \t" + successCount);
             Console.WriteLine("FAILED: \t" + failedCount);
             Console.WriteLine("EXCEPTIONS: \t" + exceptionCount);
-            Console.ReadKey(true);
         }
 
         static List<TestPackage> LoadTests(string testsDirPath)

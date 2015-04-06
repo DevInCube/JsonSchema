@@ -107,7 +107,7 @@ namespace My.Json.Schema
                         : jObject.Parent as JObject;
                 
                 string parentId = "";
-                if (parent.TryGetValue("id", out t2))               
+                if (parent.TryGetValue("id", out t2))          
                     parentId = t2.Value<string>();
 
                 return ResolveReference(string.Concat(parentId, refStr), parent);          
@@ -354,13 +354,13 @@ namespace My.Json.Schema
             {
                 if (!(t.Type == JTokenType.Float || t.Type == JTokenType.Integer))
                     throw new JSchemaException(t.Type.ToString());
-                jschema.Maximum = t.Value<double>();
+                jschema.Maximum = Convert.ToDouble(t);
             }
             if (jtoken.TryGetValue("minimum", out t))
             {
                 if (!(t.Type == JTokenType.Float || t.Type == JTokenType.Integer))
                     throw new JSchemaException(t.Type.ToString());
-                jschema.Minimum = t.Value<double>();
+                jschema.Minimum = Convert.ToDouble(t);
             }
             if (jtoken.TryGetValue("exclusiveMaximum", out t))
             {

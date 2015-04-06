@@ -47,7 +47,16 @@ namespace My.Json.Schema
                     || schema.Type == JSchemaType.None))
                     return false;
 
-                int integer = data.Value<int>();
+                double integer;
+
+                try
+                {
+                    integer = (double)data.Value<int>();
+                }
+                catch (InvalidCastException)
+                {
+                    integer = Convert.ToDouble(data);
+                }
 
                 if (schema.Minimum != null)
                 {
@@ -103,12 +112,17 @@ namespace My.Json.Schema
                 validType = true;
             }
 
-            if (data.Type == JTokenType.String)
+            if (data.Type == JTokenType.String
+                || data.Type == JTokenType.Date)
             {
                 if (!(schema.Type.HasFlag(JSchemaType.String)
                      || schema.Type == JSchemaType.None)) return false;
 
-                string value = data.Value<string>();
+                string value;
+                if (data.Type == JTokenType.Date)                
+                    value = data.Value<DateTime>().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'");
+                else
+                    value = data.Value<string>();
 
                 int strLen = new StringInfo(value).LengthInTextElements;
 
@@ -131,12 +145,54 @@ namespace My.Json.Schema
                 {
                     switch (schema.Format)
                     {
-                        case ("date-time"): break;
-                        case ("email"): break;
-                        case ("hostname"): break;
-                        case ("ipv4"): break;
-                        case ("ipv6"): break;
-                        case ("uri"): break;
+                        case ("date-time"):
+                            {
+                                DateTime temp;
+                                if (!DateTime.TryParseExact(value, "yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out temp))
+                                    return false;               
+                                break;
+                            }
+                        case ("email"):
+                            {
+                                if (!EMailHelpers.IsValidEmail(value))
+                                    return false;
+                                break;
+                            }
+                        case ("hostname"):
+                            {
+                                if (!Regex.IsMatch(value, @"^(?=.{1,255}$)[0-9A-Za-z](?:(?:[0-9A-Za-z]|-){0,61}[0-9A-Za-z])?(?:\.[0-9A-Za-z](?:(?:[0-9A-Za-z]|-){0,61}[0-9A-Za-z])?)*\.?$", RegexOptions.CultureInvariant))
+                                    return false;
+                                break;
+                            }
+                        case ("ipv4"):
+                            {
+                                string[] parts = value.Split('.');
+                                if (parts.Length != 4)
+                                    return false;
+
+                                for (int i = 0; i < parts.Length; i++)
+                                {
+                                    int num;
+                                    if (!int.TryParse(parts[i], NumberStyles.Integer, CultureInfo.InvariantCulture, out num)
+                                        || (num < 0 || num > 255))
+                                    {
+                                        return false;
+                                    }
+                                }                                
+                                break;
+                            }
+                        case ("ipv6"):
+                            {
+                                if (!(Uri.CheckHostName(value) == UriHostNameType.IPv6))
+                                    return false;
+                                break;
+                            }
+                        case ("uri"):
+                            {
+                                if (!Uri.IsWellFormedUriString(value, UriKind.Absolute))
+                                    return false;
+                                break;
+                            }
                     }
                 }
 
