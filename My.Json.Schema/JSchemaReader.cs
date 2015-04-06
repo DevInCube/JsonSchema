@@ -14,6 +14,7 @@ namespace My.Json.Schema
 
         private JSchemaResolver resolver;
         private Stack<JSchema> _schemaStack = new Stack<JSchema>();
+        private IDictionary<string, JSchema> _inlineReferences;
 
         public JSchemaReader() { }
 
@@ -95,11 +96,16 @@ namespace My.Json.Schema
                 }
                 catch (UriFormatException) { }
 
+                JToken t2;
+                if (jObject.TryGetValue(refStr, out t2))
+                {
+                    return ResolveInternalReference(refStr, jObject);
+                }
+
                 JObject parent = (jObject.Parent is JProperty)
                         ? (jObject.Parent as JProperty).Parent as JObject
                         : jObject.Parent as JObject;
                 
-                JToken t2;
                 string parentId = "";
                 if (parent.TryGetValue("id", out t2))               
                     parentId = t2.Value<string>();
@@ -122,8 +128,13 @@ namespace My.Json.Schema
                 {
                     JObject obj = token as JObject;
                     var unescapedPropName = propName.Replace("~1", "/").Replace("~0", "~").Replace("%25","%");
-                    if (!obj.TryGetValue(unescapedPropName, out propVal)) 
+                    if (!obj.TryGetValue(unescapedPropName, out propVal))
+                    {
+                        string inline = "#" + unescapedPropName;
+                        if (_inlineReferences.ContainsKey(inline))
+                            return _inlineReferences[inline];
                         throw new JSchemaException("no property named " + propName);
+                    }
                 }
                 else if (token is JArray)
                 {
@@ -287,6 +298,26 @@ namespace My.Json.Schema
                     }
                     else
                         throw new JSchemaException();
+                }
+            }
+            if (jtoken.TryGetValue("definitions", out t))
+            {                 
+                if (t.Type != JTokenType.Object) throw new JSchemaException();
+                JObject definitions = t as JObject;
+
+                _inlineReferences = new Dictionary<string, JSchema>();
+                foreach (JProperty prop in definitions.Properties())
+                {
+                    if (prop.Value.Type != JTokenType.Object) throw new JSchemaException();
+
+                    JObject def = prop.Value as JObject;
+                    
+                    JSchema schema = ReadSchema(def, resolver);
+                    if(schema.Id!=null && schema.Id.StartsWith("#"))
+                    {
+                        string reference = schema.Id;
+                        _inlineReferences.Add(reference, schema);
+                    }
                 }
             }
             if (jtoken.TryGetValue("properties", out t))

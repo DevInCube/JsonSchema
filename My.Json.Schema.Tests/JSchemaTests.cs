@@ -17,29 +17,31 @@ namespace My.Json.Schema.Tests
         {
             JSchema jschema = JSchema.Parse(@"{}");
 
-            Assert.AreEqual(null, jschema.Id);
-            Assert.AreEqual(null, jschema.Title);
-            Assert.AreEqual(null, jschema.Description);
-            Assert.AreEqual(null, jschema.Default);
-            Assert.AreEqual(null, jschema.Format);
-            Assert.AreEqual(JSchemaType.None, jschema.Type);
+            Assert.AreEqual(null, jschema.Id, "id");
+            Assert.AreEqual(null, jschema.Title, "Title");
+            Assert.AreEqual(null, jschema.Description, "Description");
+            Assert.AreEqual(null, jschema.Default, "Default");
+            Assert.AreEqual(null, jschema.Format, "Format");
+            Assert.AreEqual(JSchemaType.None, jschema.Type, "Type");
 
-            Assert.AreNotEqual(null, jschema.ItemsSchema);
-            Assert.AreEqual(null, jschema.ItemsArray);
+            Assert.AreNotEqual(null, jschema.ItemsSchema, "ItemsSchema");
+            Assert.AreNotEqual(null, jschema.ItemsArray, "ItemsArray");
+            Assert.AreEqual(0, jschema.ItemsArray.Count, "ItemsArray.Count");
 
-            Assert.AreNotEqual(null, jschema.Properties);
-            Assert.AreEqual(0, jschema.Properties.Count);
-            Assert.AreEqual(null, jschema.MultipleOf);
-            Assert.AreEqual(null, jschema.Maximum);
-            Assert.AreEqual(null, jschema.Minimum);
-            Assert.AreEqual(null, jschema.MaxLength);
-            Assert.AreEqual(null, jschema.MinLength);
-            Assert.AreEqual(null, jschema.MinLength);
-            Assert.AreEqual(null, jschema.MinItems);
-            Assert.AreEqual(null, jschema.MaxItems);
-            Assert.IsFalse(jschema.UniqueItems);
-            Assert.AreEqual(null, jschema.Required);
-            Assert.AreEqual(null, jschema.Enum);
+            Assert.AreNotEqual(null, jschema.Properties, "Properties");
+            Assert.AreEqual(0, jschema.Properties.Count, "Properties.Count");
+            Assert.AreEqual(null, jschema.MultipleOf, "MultipleOf");
+            Assert.AreEqual(null, jschema.Maximum, "Maximum");
+            Assert.AreEqual(null, jschema.Minimum, "Minimum");
+            Assert.AreEqual(null, jschema.MaxLength, "MaxLength");
+            Assert.AreEqual(null, jschema.MinLength, "MinLength");
+            Assert.AreEqual(null, jschema.MinItems, "MinItems");
+            Assert.AreEqual(null, jschema.MaxItems, "MaxItems");
+            Assert.IsFalse(jschema.UniqueItems, "UniqueItems");
+            Assert.AreNotEqual(null, jschema.Required, "Required");
+            Assert.AreEqual(0, jschema.Required.Count, "Required.Count");
+            Assert.AreNotEqual(null, jschema.Enum, "Enum");
+            Assert.AreEqual(0, jschema.Enum.Count, "Enum");
             Assert.IsTrue(jschema.AllowAdditionalProperties, "AllowAdditionalProperties");
             Assert.AreNotEqual(null, jschema.PatternProperties, "PatternProperties");          
         }
@@ -75,13 +77,13 @@ namespace My.Json.Schema.Tests
         public void Id_SetAbsoluteValidUri_IsValidAndMatches()
         {
             JSchema jschema = JSchema.Parse(@"{id:'http://x.y.z/rootschema.json#'}");
-            Assert.AreEqual("http://x.y.z/rootschema.json#", jschema.Id.OriginalString);
+            Assert.AreEqual("http://x.y.z/rootschema.json#", jschema.Id);
         }
         [TestMethod]
         public void Id_SetAsString_IsValidAndMatches()
         {
             JSchema jschema = JSchema.Parse(@"{id:'stringId'}");
-            Assert.AreEqual("stringId", jschema.Id.OriginalString);
+            Assert.AreEqual("stringId", jschema.Id);
         }
         [TestMethod]
         [ExpectedException(typeof(JSchemaException))]
