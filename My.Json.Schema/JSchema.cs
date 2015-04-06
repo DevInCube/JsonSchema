@@ -31,7 +31,7 @@ namespace My.Json.Schema
 
         #region public properties
 
-        public Uri Id { get; set; }
+        public string Id { get; set; }
         public JSchemaType Type { get; set; }
         public IDictionary<string, JSchema> Properties {
             get

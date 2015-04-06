@@ -30,6 +30,10 @@ namespace My.Json.Schema.TestConsole
                 int testExceptionCount = 0;
                 foreach (TestContext test in testPack.Tests)
                 {
+                    if (test.Description.Equals("change resolution scope"))
+                    {
+
+                    }
                     int caseSuccessCount = 0;
                     int caseFailedCount = 0;
                     int caseExceptionCount = 0;

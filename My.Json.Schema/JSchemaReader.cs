@@ -31,65 +31,7 @@ namespace My.Json.Schema
 
                 string refStr = t.Value<string>();
 
-                if (String.IsNullOrWhiteSpace(refStr)) throw new JSchemaException("empty reference");                
-
-                if (refStr.Equals("#"))
-                    return _schemaStack.Last();                
-
-                if (refStr.Contains('#'))
-                {
-                    JObject rootObject = jObject.GetRootParent() as JObject;
-                    string[] fragments = refStr.Split('#');
-                    string fullHost = fragments[0];
-                    string path = fragments[1];
-                    if (!String.IsNullOrEmpty(fullHost))
-                    {
-                        string rootId = null;
-                        JToken t2;
-                        if (rootObject.TryGetValue("id", out t2))
-                        {
-                            rootId = t2.Value<string>().Split('#')[0];
-                            if (rootId.Equals(fullHost))
-                                return ResolveInternalReference(path, rootObject);
-                        }
-                        else
-                        {
-                            if (String.IsNullOrWhiteSpace(fullHost)) throw new JSchemaException();
-                        }
-                        if (this.resolver == null) throw new JSchemaException();
-                        Uri remoteUri;
-                        try
-                        {
-                            remoteUri = new Uri(refStr);
-                        }
-                        catch (UriFormatException)
-                        {
-                            remoteUri = new Uri(new Uri(rootId), refStr);
-                        }
-                        return ResolveExternalReference(remoteUri);
-                    }
-                    else
-                    {
-                        return ResolveInternalReference(fragments[1], rootObject);
-                    }
-                }
-                else
-                {
-                    try
-                    {
-                        Uri absUri = new Uri(refStr);
-                        if (absUri.IsAbsoluteUri)
-                        {
-                            return ResolveExternalReference(absUri);
-                        }
-                    }
-                    catch (UriFormatException) { }
-
-                    JObject parent = (jObject.Parent is JProperty)
-                            ? (jObject.Parent as JProperty).Parent as JObject
-                            : jObject.Parent as JObject;
-                    return ResolveInternalReference(refStr, parent);
-                }
+                return ResolveReference(refStr, jObject);
             }
             else
             {
@@ -97,20 +39,105 @@ namespace My.Json.Schema
             }
         }
 
+        private JSchema ResolveReference(string refStr, JObject jObject)
+        {
+            if (String.IsNullOrWhiteSpace(refStr)) throw new JSchemaException("empty reference");
+
+            if (refStr.Equals("#"))
+                return _schemaStack.Last();
+
+            if (refStr.Contains('#'))
+            {
+                JObject rootObject = jObject.GetRootParent() as JObject;
+                string[] fragments = refStr.Split('#');
+                string fullHost = fragments[0];
+                string path = fragments[1];
+                if (!String.IsNullOrEmpty(fullHost))
+                {
+                    string rootId = null;
+                    JToken t2;
+                    if (rootObject.TryGetValue("id", out t2))
+                    {
+                        rootId = t2.Value<string>().Split('#')[0];
+                        if (rootId.Equals(fullHost))
+                            return ResolveInternalReference(path, rootObject);
+                    }
+                    else
+                    {
+                        if (String.IsNullOrWhiteSpace(fullHost)) throw new JSchemaException();
+                    }
+                    if (this.resolver == null) throw new JSchemaException();
+                    Uri remoteUri;
+                    try
+                    {
+                        remoteUri = new Uri(refStr);
+                    }
+                    catch (UriFormatException)
+                    {
+                        remoteUri = new Uri(new Uri(rootId), refStr);
+                    }
+                    return ResolveExternalReference(remoteUri);
+                }
+                else
+                {
+                    return ResolveInternalReference(fragments[1], rootObject);
+                }
+            }
+            else
+            {
+                try
+                {
+                    Uri absUri = new Uri(refStr);
+                    if (absUri.IsAbsoluteUri)
+                    {
+                        return ResolveExternalReference(absUri);
+                    }
+                }
+                catch (UriFormatException) { }
+
+                JObject parent = (jObject.Parent is JProperty)
+                        ? (jObject.Parent as JProperty).Parent as JObject
+                        : jObject.Parent as JObject;
+                
+                JToken t2;
+                string parentId = "";
+                if (parent.TryGetValue("id", out t2))               
+                    parentId = t2.Value<string>();
+
+                return ResolveReference(string.Concat(parentId, refStr), parent);          
+            }
+        }
+
         internal JSchema ResolveInternalReference(string path, JObject rootObject)
         {
             string[] props = path.Split(new char[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
 
+            JToken token = rootObject;
+
             foreach (string propName in props)
             {
                 JToken propVal;
-                if (!rootObject.TryGetValue(propName, out propVal)) throw new JSchemaException("no property named " + propName);
-                if (propVal.Type == JTokenType.Object)
-                    rootObject = propVal as JObject;
+
+                if (token is JObject)
+                {
+                    JObject obj = token as JObject;
+                    if (!obj.TryGetValue(propName, out propVal)) throw new JSchemaException("no property named " + propName);
+                }
+                else if (token is JArray)
+                {
+                    int index;
+                    if (!int.TryParse(propName, out index)) throw new JSchemaException("invalid array index " + propName);
+                    JArray array = token as JArray;
+                    propVal = array[index];
+                }
                 else
-                    throw new JSchemaException("property value is not an object");
+                {
+                    throw new JSchemaException("property value is not an object or array");
+                }
+                token = propVal;
             }
-            return ReadSchema(rootObject);
+            if (!(token is JObject)) throw new JSchemaException("ref to non-object");
+            return ReadSchema(token as JObject);
         }
 
         internal JSchema ResolveExternalReference(Uri newUri)
@@ -139,7 +166,7 @@ namespace My.Json.Schema
             {
                 if (!t.IsString())
                     throw new JSchemaException(t.Type.ToString());
-                jschema.Id = new Uri(t.Value<string>());
+                jschema.Id = t.Value<string>();
             }
             if (jtoken.TryGetValue("title", out t))
             {
