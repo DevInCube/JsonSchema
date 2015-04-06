@@ -13,7 +13,7 @@ namespace My.Json.Schema
     {
 
         private JObject schema;
-        private JSchema _AdditionalItems, _AdditionalProperties;        
+        private JSchema _ItemsSchema, _AdditionalItems, _AdditionalProperties;        
         private IDictionary<string, JSchema> _properties;
         private IDictionary<string, JSchema> _pattternProperties;
         private double? _multipleOf;
@@ -28,6 +28,7 @@ namespace My.Json.Schema
         private IList<JSchema> _AllOf, _AnyOf, _OneOf, _ItemsArray;
         private IDictionary<string, JSchema> _SchemaDependencies;
         private IDictionary<string, IList<string>> _PropertyDependencies;
+        private IDictionary<string, JToken> _ExtensionData;
 
         #region public properties
 
@@ -55,7 +56,19 @@ namespace My.Json.Schema
         public string Description { get; set; }
         public object Default { get; set; }
         public string Format { get; set; }
-        public JSchema ItemsSchema { get; set; }
+        public JSchema ItemsSchema
+        {
+            get
+            {
+                if (_ItemsSchema == null)
+                    _ItemsSchema = new JSchema();
+                return _ItemsSchema;
+            }
+            set
+            {
+                _ItemsSchema = value;
+            }
+        }
         public IList<JSchema> ItemsArray
         {
             get
@@ -207,7 +220,6 @@ namespace My.Json.Schema
             }
         }
         public bool AllowAdditionalItems { get; set; }
-
         public IDictionary<string, JSchema> SchemaDependencies
         {
             get
@@ -224,6 +236,15 @@ namespace My.Json.Schema
                 if (_PropertyDependencies == null)
                     _PropertyDependencies = new Dictionary<string, IList<string>>();
                 return _PropertyDependencies;
+            }
+        }
+        public IDictionary<string, JToken> ExtensionData
+        {
+            get
+            {
+                if (_ExtensionData == null)
+                    _ExtensionData = new Dictionary<string, JToken>();
+                return _ExtensionData;
             }
         }
 
@@ -243,13 +264,7 @@ namespace My.Json.Schema
 
         public static JSchema Parse(string json)
         {
-            if (json == null) throw new ArgumentNullException("schema");
-            if (String.IsNullOrWhiteSpace(json)) throw new JSchemaException();
-
-            JObject jtoken = JObject.Parse(json);
-
-            JSchemaReader reader = new JSchemaReader();
-            return reader.ReadSchema(jtoken);
+            return Parse(json, null);
         }
 
         public static JSchema Parse(string json, JSchemaResolver resolver)
@@ -262,6 +277,7 @@ namespace My.Json.Schema
             JSchemaReader reader = new JSchemaReader();
             return reader.ReadSchema(jtoken, resolver);
         }
-       
+
+
     }
 }

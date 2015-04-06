@@ -43,7 +43,12 @@ namespace My.Json.Schema.Tests
             Assert.AreNotEqual(null, jschema.Enum, "Enum");
             Assert.AreEqual(0, jschema.Enum.Count, "Enum");
             Assert.IsTrue(jschema.AllowAdditionalProperties, "AllowAdditionalProperties");
-            Assert.AreNotEqual(null, jschema.PatternProperties, "PatternProperties");          
+            Assert.AreNotEqual(null, jschema.PatternProperties, "PatternProperties");
+            Assert.AreEqual(0, jschema.PatternProperties.Count, "PatternProperties.Count");
+            Assert.AreNotEqual(null, jschema.SchemaDependencies, "SchemaDependencies");
+            Assert.AreEqual(0, jschema.SchemaDependencies.Count, "SchemaDependencies.Count");
+            Assert.AreNotEqual(null, jschema.PropertyDependencies, "PropertyDependencies");
+            Assert.AreEqual(0, jschema.PropertyDependencies.Count, "PropertyDependencies.Count");  
         }
         [TestMethod]
         public void JSchema_EmptySchemaCompare_AreNotEqual()
@@ -70,6 +75,7 @@ namespace My.Json.Schema.Tests
             JSchema jschema = new JSchema();
             Assert.AreEqual("{}", jschema.ToString());
         }
+
         #endregion
 
         #region id_tests
@@ -279,10 +285,25 @@ namespace My.Json.Schema.Tests
             var sh = jschema.Properties["refTest"];
             Assert.IsTrue(sh.Type.HasFlag(JSchemaType.String));
         }
+        [TestMethod]
+        public void Ref_SetExternalReferenceWithScopeChanged_ReferenceResolvedAndHasTypeString()
+        {
+            var mock = new Mock<JSchemaResolver>();
+            mock.Setup(ins => ins.GetSchemaResource(new Uri("http://localhost:1234/folder/test.json")))
+                .Returns(new MemoryStream(
+                    Encoding.UTF8.GetBytes("{ 'type' : 'string' }")));
 
-        /// <summary>
-        /// JSON.NET Schema doesn't support this
-        /// </summary>
+            JSchema jschema = JSchema.Parse(@" {
+    'id': 'http://localhost:1234/',
+    'items': {
+        'id': 'folder/',
+        'items': {'$ref': 'test.json'}
+    }
+}", mock.Object);
+            var sh = jschema.ItemsSchema.ItemsSchema;
+            Assert.IsTrue(sh.Type.HasFlag(JSchemaType.String));
+        }
+
         [TestMethod]
         public void Reference_InlineDereferencing_OK()
         {
@@ -303,21 +324,32 @@ namespace My.Json.Schema.Tests
         [TestMethod]
         public void Reference_Loop_PointersEquals()
         {
-            string shStr = @"{
-    'properties': {
-        'loop': { '$ref' : '#' }
-    },
-
-}";
+            string shStr = @"{ 'properties': { 'loop': { '$ref' : '#' } }}";
             JSchema jschema = JSchema.Parse(shStr);
             var loop = jschema.Properties["loop"];
             Assert.AreEqual(jschema, loop);
-        }
+        }      
 
         #endregion
 
         #region items_tests
+        [TestMethod]
+        public void Items_ParseAsSchema_SchemaMatches()
+        {
+            string shStr = @"{ 'items': { 'type':'integer' }}";
+            JSchema jschema = JSchema.Parse(shStr);
+            Assert.IsTrue(jschema.ItemsSchema.Type.HasFlag(JSchemaType.Integer));            
+        }
+        [TestMethod]
+        public void Items_ParseAsList_SchemasMatch()
+        {
+            string shStr = @"{ 'items': [{ 'type':'integer' },{ 'type':'boolean' } ]}";
+            JSchema jschema = JSchema.Parse(shStr);
 
+            Assert.AreEqual(2, jschema.ItemsArray.Count);
+            Assert.IsTrue(jschema.ItemsArray[0].Type.HasFlag(JSchemaType.Integer));
+            Assert.IsTrue(jschema.ItemsArray[1].Type.HasFlag(JSchemaType.Boolean));
+        }    
         #endregion
 
         #region properties_tests
@@ -425,9 +457,16 @@ namespace My.Json.Schema.Tests
         }
         [TestMethod]
         [ExpectedException(typeof(JSchemaException))]
-        public void ExclusiveMaximum_IsSetButNoMaximum_ThrowsError()
+        public void ExclusiveMaximum_ParseIsSetButNoMaximum_ThrowsError()
         {
-            JSchema jschema = JSchema.Parse(@"{'exclusiveMaximum':5}");
+            JSchema jschema = JSchema.Parse(@"{'exclusiveMaximum':true}");
+        }
+        [TestMethod]
+        public void ExclusiveMaximum_ParseIsSetTrue_IsTrue()
+        {
+            JSchema jschema = JSchema.Parse(@"{'maximum':1, 'exclusiveMaximum':true}");
+
+            Assert.IsTrue(jschema.ExclusiveMaximum);
         }
         #endregion
 
@@ -842,6 +881,33 @@ namespace My.Json.Schema.Tests
         }        
         #endregion
 
+        #region AllowAdditionalItems
+        [TestMethod]
+        public void AllowAdditionalItems_ParseAsFalseBool_OK()
+        {
+            JSchema jschema = JSchema.Parse(@"{additionalItems:false}");
+
+            Assert.IsFalse(jschema.AllowAdditionalItems);
+        }
+        [TestMethod]
+        public void AllowAdditionalItems_ParseAsTrueBool_OK()
+        {
+            JSchema jschema = JSchema.Parse(@"{additionalItems:true}");
+
+            Assert.IsTrue(jschema.AllowAdditionalItems);
+        }
+        #endregion
+
+        #region AdditionalItems
+        [TestMethod]
+        public void AdditionalItems_SetEmptySchema_TypeOK()
+        {
+            JSchema jschema = JSchema.Parse(@"{additionalItems:{'type':'boolean'}}");
+
+            Assert.IsTrue(jschema.AdditionalItems.Type.HasFlag(JSchemaType.Boolean));
+        }
+        #endregion
+
         #region dependencies
         #endregion
 
@@ -942,6 +1008,25 @@ namespace My.Json.Schema.Tests
             JSchema jschema = JSchema.Parse(@"{'not':{}}");
 
             Assert.IsTrue(JToken.DeepEquals(new JObject(), JObject.Parse(jschema.Not.ToString())));
+        }
+        #endregion
+
+        #region ExtensionData
+        [TestMethod]
+        public void ExtensionData_ParseDefinitions_IsAddedToExtensionData()
+        {
+            JSchema jschema = JSchema.Parse(@"{'definitions':{}}");
+
+            Assert.IsTrue(jschema.ExtensionData.ContainsKey("definitions"));
+            Assert.IsTrue(JToken.DeepEquals(new JObject(), jschema.ExtensionData["definitions"]));
+        }
+        [TestMethod]
+        public void ExtensionData_ParseNotAKeyword_IsAddedToExtensionData()
+        {
+            JSchema jschema = JSchema.Parse(@"{'ext':{}}");
+
+            Assert.IsTrue(jschema.ExtensionData.ContainsKey("ext"));
+            Assert.IsTrue(JToken.DeepEquals(new JObject(), jschema.ExtensionData["ext"]));
         }
         #endregion
     }
