@@ -119,14 +119,13 @@ namespace My.Json.Schema
             JObject obj = JObject.Load(new JsonTextReader(new StreamReader(resolver.GetSchemaResource(newUri))));
 
             JSchemaReader externalReader = new JSchemaReader();
-            JSchema externalSchema = externalReader.ReadSchema(obj, resolver);
-            return externalSchema;
-
+            JSchema externalSchema;
             string[] fragments = newUri.OriginalString.Split('#');
             if (fragments.Length > 1)
-                return ResolveInternalReference(fragments[1], obj);
+                externalSchema = externalReader.ResolveInternalReference(fragments[1], obj);
             else
-                return ReadSchema(obj);
+                externalSchema = externalReader.ReadSchema(obj, resolver);            
+            return externalSchema;
         }
 
         private JSchema Load(JObject jtoken)
