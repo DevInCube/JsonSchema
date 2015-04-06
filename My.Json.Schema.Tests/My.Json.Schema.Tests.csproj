@@ -62,7 +62,6 @@
   <ItemGroup>
     <Compile Include="JSchemaTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ItemsSchemaTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

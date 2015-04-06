@@ -24,10 +24,8 @@ namespace My.Json.Schema.Tests
             Assert.AreEqual(null, jschema.Format);
             Assert.AreEqual(JSchemaType.None, jschema.Type);
 
-            Assert.IsTrue(jschema.Items.IsSchema);
-            Assert.AreNotEqual(null, jschema.Items.Schema);
-            Assert.IsFalse(jschema.Items.IsArray);
-            Assert.AreEqual(null, jschema.Items.Array);
+            Assert.AreNotEqual(null, jschema.ItemsSchema);
+            Assert.AreEqual(null, jschema.ItemsArray);
 
             Assert.AreNotEqual(null, jschema.Properties);
             Assert.AreEqual(0, jschema.Properties.Count);

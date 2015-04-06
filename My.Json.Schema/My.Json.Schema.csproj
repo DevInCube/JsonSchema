@@ -42,7 +42,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ItemsSchema.cs" />
     <Compile Include="JSchema.cs" />
     <Compile Include="JSchemaException.cs" />
     <Compile Include="JSchemaPreloadedResolver.cs" />
@@ -54,6 +53,7 @@
     <Compile Include="Utilities\EMailHelpers.cs" />
     <Compile Include="Utilities\JSchemaTypeHelpers.cs" />
     <Compile Include="Utilities\JTokenHelpers.cs" />
+    <Compile Include="Utilities\StringHelpers.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

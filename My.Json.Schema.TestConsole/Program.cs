@@ -25,12 +25,22 @@ namespace My.Json.Schema.TestConsole
             foreach (TestPackage testPack in draft4Tests)
             {
                 Console.WriteLine(testPack.Name + ":" + Environment.NewLine);
+                int testSuccessCount = 0;
+                int testFailedCount = 0;
+                int testExceptionCount = 0;
                 foreach (TestContext test in testPack.Tests)
                 {
-                    Console.WriteLine("Test: " + test.Description);
+                    int caseSuccessCount = 0;
+                    int caseFailedCount = 0;
+                    int caseExceptionCount = 0;
+                    StringBuilder builder = new StringBuilder();
+                    builder.AppendLine("Test: " + test.Description);
                     foreach (TestCase testCase in test.Cases)
                     {
-                        Console.Write("\tCase: " + testCase.Description + " ");
+                        if (testCase.Description.Equals("valid definition schema"))
+                        {
+
+                        }
                         JSchema schema;
                         try
                         {
@@ -39,21 +49,37 @@ namespace My.Json.Schema.TestConsole
                         catch(Exception e)
                         {
                             exceptionCount++;
-                            Console.WriteLine("\t\tException: " + e.Message);
+                            testExceptionCount++;
+                            caseExceptionCount++;
+                            builder.AppendLine("\t\tException: " + e.Message);
                             continue;
                         }
 
                         bool result = testCase.Data.IsValid(schema);
                        
                         bool success = (result == testCase.Valid);
-                        Console.WriteLine("\t\tStatus: " + (success ? "ok" : "FAILED"));
+                        if (!success)
+                        {
+                            builder.Append("\tCase: " + testCase.Description + " ");
+                            builder.AppendLine("\t\tStatus: " + (success ? "ok" : "FAILED"));
+                        }
                         if (success)
+                        {
                             successCount++;
+                            testSuccessCount++;
+                            caseSuccessCount++;
+                        }
                         else
+                        {
                             failedCount++;
+                            testFailedCount++;
+                            caseFailedCount++;
+                        }
                     }
+                    if (caseFailedCount > 0 || caseExceptionCount > 0)
+                        Console.WriteLine(builder.ToString());
                 }
-                Console.WriteLine("---------------------------");
+                Console.WriteLine(String.Format("[{0}/{1}]---------------------------", testSuccessCount, (testSuccessCount + testFailedCount + testExceptionCount)));
             }
             Console.WriteLine("===========================");
             Console.WriteLine("SUCCESS: \t" + successCount);

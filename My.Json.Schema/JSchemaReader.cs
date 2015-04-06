@@ -118,6 +118,10 @@ namespace My.Json.Schema
             if (resolver == null) throw new JSchemaException("can't resolve external schema");
             JObject obj = JObject.Load(new JsonTextReader(new StreamReader(resolver.GetSchemaResource(newUri))));
 
+            JSchemaReader externalReader = new JSchemaReader();
+            JSchema externalSchema = externalReader.ReadSchema(obj, resolver);
+            return externalSchema;
+
             string[] fragments = newUri.OriginalString.Split('#');
             if (fragments.Length > 1)
                 return ResolveInternalReference(fragments[1], obj);
@@ -195,32 +199,67 @@ namespace My.Json.Schema
 
             if (jtoken.TryGetValue("items", out t))
             {
-                /*if (t.Type == JTokenType.Undefined
+                if (t.Type == JTokenType.Undefined
                     || t.Type == JTokenType.Null)
                 {
-                    jschema.Items = new ItemsSchema(new JSchema());
+                    jschema.ItemsSchema = new JSchema();
                 }
                 else if (t.Type == JTokenType.Object)
                 {
                     JObject obj = t as JObject;
-                    jschema._items = new ItemsSchema(ReadSchema(obj));
+                    jschema.ItemsSchema = ReadSchema(obj);
                 }
                 else if (t.Type == JTokenType.Array)
-                {
-                    IList<JSchema> schemas = new List<JSchema>();
+                {                    
                     foreach (var jsh in (t as JArray).Children())
                     {
                         if (jsh.Type != JTokenType.Object) throw new JSchemaException();
                         JObject jobj = jsh as JObject;
-                        schemas.Add(ReadSchema(jobj));
-                    }
-                    jschema._items = new ItemsSchema(schemas);
+                        jschema.ItemsArray.Add(ReadSchema(jobj));
+                    }                    
                 }
-                else throw new JSchemaException("items is " + t.Type.ToString());*/
+                else throw new JSchemaException("items is " + t.Type.ToString());
             }
             else
             {
                 //jschema._items = new ItemsSchema(new JSchema());
+            }
+            if (jtoken.TryGetValue("dependencies", out t))
+            {
+                if (t.Type != JTokenType.Object) throw new JSchemaException();
+                JObject dependencies = t as JObject;
+
+                foreach (var prop in dependencies.Properties())
+                {
+                    JToken dependency = prop.Value;
+                    if (dependency.Type == JTokenType.Object)
+                    {
+                        JObject dep = dependency as JObject;
+                        jschema.SchemaDependencies.Add(prop.Name, ReadSchema(dep));
+                    }
+                    else if (dependency.Type == JTokenType.Array)
+                    {
+                        JArray dep = dependency as JArray;
+
+                        if (dep.Count == 0) throw new JSchemaException();
+
+                        jschema.PropertyDependencies.Add(prop.Name, new List<string>());
+
+                        foreach (var depItem in dep.Children())
+                        {
+                            if (depItem.Type != JTokenType.String) throw new JSchemaException();
+
+                            string propName = depItem.Value<string>();
+
+                            if (jschema.PropertyDependencies[prop.Name].Contains(propName))
+                                throw new JSchemaException();
+
+                            jschema.PropertyDependencies[prop.Name].Add(propName);
+                        }
+                    }
+                    else
+                        throw new JSchemaException();
+                }
             }
             if (jtoken.TryGetValue("properties", out t))
             {
@@ -363,7 +402,6 @@ namespace My.Json.Schema
                 if (t.Type != JTokenType.Array) throw new JSchemaException();
                 JArray array = t as JArray;
                 if (t.Count() == 0) throw new JSchemaException();
-                jschema.AllOf = new List<JSchema>();
                 foreach (var item in array.Children())
                 {
                     if (!(item.Type == JTokenType.Object)) throw new JSchemaException();
@@ -376,7 +414,6 @@ namespace My.Json.Schema
                 if (t.Type != JTokenType.Array) throw new JSchemaException();
                 JArray array = t as JArray;
                 if (t.Count() == 0) throw new JSchemaException();
-                jschema.AnyOf = new List<JSchema>();
                 foreach (var item in array.Children())
                 {
                     if (!(item.Type == JTokenType.Object)) throw new JSchemaException();
@@ -389,7 +426,6 @@ namespace My.Json.Schema
                 if (t.Type != JTokenType.Array) throw new JSchemaException();
                 JArray array = t as JArray;
                 if (t.Count() == 0) throw new JSchemaException();
-                jschema.OneOf = new List<JSchema>();
                 foreach (var item in array.Children())
                 {
                     if (!(item.Type == JTokenType.Object)) throw new JSchemaException();
@@ -402,6 +438,20 @@ namespace My.Json.Schema
                 if (t.Type != JTokenType.Object) throw new JSchemaException();
                 JObject obj = t as JObject;
                 jschema.Not = ReadSchema(obj);
+            }
+            if (jtoken.TryGetValue("additionalItems", out t))
+            {
+                if (!(t.Type == JTokenType.Boolean || t.Type == JTokenType.Object)) throw new JSchemaException();
+                if (t.Type == JTokenType.Boolean)
+                {
+                    bool allow = t.Value<bool>();
+                    jschema.AllowAdditionalItems = allow;
+                }
+                else if (t.Type == JTokenType.Object)
+                {
+                    JObject obj = t as JObject;
+                    jschema.AdditionalItems = ReadSchema(obj);
+                }
             }
 
             _schemaStack.Pop();

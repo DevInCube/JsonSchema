@@ -12,9 +12,8 @@ namespace My.Json.Schema
     public class JSchema
     {
 
-        private JSchemaResolver resolver;
         private JObject schema;
-        private ItemsSchema _items;
+        private JSchema _AdditionalItems, _AdditionalProperties;        
         private IDictionary<string, JSchema> _properties;
         private IDictionary<string, JSchema> _pattternProperties;
         private double? _multipleOf;
@@ -25,7 +24,10 @@ namespace My.Json.Schema
         private int? _maxProperties;
         private int? _minProperties;
         private IList<JToken> _enum;
-        private IList<string> _required;
+        private IList<string> _required;        
+        private IList<JSchema> _AllOf, _AnyOf, _OneOf, _ItemsArray;
+        private IDictionary<string, JSchema> _SchemaDependencies;
+        private IDictionary<string, IList<string>> _PropertyDependencies;
 
         #region public properties
 
@@ -53,11 +55,14 @@ namespace My.Json.Schema
         public string Description { get; set; }
         public object Default { get; set; }
         public string Format { get; set; }
-        public ItemsSchema Items
+        public JSchema ItemsSchema { get; set; }
+        public IList<JSchema> ItemsArray
         {
             get
             {
-                return _items;
+                if (_ItemsArray == null)
+                    _ItemsArray = new List<JSchema>();
+                return _ItemsArray;
             }
         }
         public double? MultipleOf
@@ -138,7 +143,19 @@ namespace My.Json.Schema
             }
         }
         public bool AllowAdditionalProperties { get; set; }
-        public JSchema AdditionalProperties { get; set; }
+        public JSchema AdditionalProperties
+        {
+            get
+            {
+                if (_AdditionalProperties == null)
+                    _AdditionalProperties = new JSchema();
+                return _AdditionalProperties;
+            }
+            set
+            {
+                _AdditionalProperties = value;
+            }
+        }
         public IList<JToken> Enum
         {
             get
@@ -148,10 +165,67 @@ namespace My.Json.Schema
                 return _enum;
             }
         }
-        public IList<JSchema> AllOf { get; set; }
-        public IList<JSchema> AnyOf { get; set; }
-        public IList<JSchema> OneOf { get; set; }
+        public IList<JSchema> AllOf
+        {
+            get
+            {
+                if (_AllOf == null)
+                    _AllOf = new List<JSchema>();
+                return _AllOf;
+            }
+        }
+        public IList<JSchema> AnyOf
+        {
+            get
+            {
+                if (_AnyOf == null)
+                    _AnyOf = new List<JSchema>();
+                return _AnyOf;
+            }
+        }
+        public IList<JSchema> OneOf
+        {
+            get
+            {
+                if (_OneOf == null)
+                    _OneOf = new List<JSchema>();
+                return _OneOf;
+            }
+        }
         public JSchema Not { get; set; }
+        public JSchema AdditionalItems
+        {
+            get
+            {
+                if (_AdditionalItems == null)
+                    _AdditionalItems = new JSchema();
+                return _AdditionalItems;
+            }
+            set
+            {
+                _AdditionalItems = value;
+            }
+        }
+        public bool AllowAdditionalItems { get; set; }
+
+        public IDictionary<string, JSchema> SchemaDependencies
+        {
+            get
+            {
+                if (_SchemaDependencies == null)
+                    _SchemaDependencies = new Dictionary<string, JSchema>();
+                return _SchemaDependencies;
+            }
+        }
+        public IDictionary<string, IList<string>> PropertyDependencies
+        {
+            get
+            {
+                if (_PropertyDependencies == null)
+                    _PropertyDependencies = new Dictionary<string, IList<string>>();
+                return _PropertyDependencies;
+            }
+        }
 
         #endregion
 
@@ -159,6 +233,7 @@ namespace My.Json.Schema
         {
             schema = new JObject();            
             AllowAdditionalProperties = true;
+            AllowAdditionalItems = true;
         }   
 
         public override string ToString()
@@ -188,6 +263,5 @@ namespace My.Json.Schema
             return reader.ReadSchema(jtoken, resolver);
         }
        
-
     }
 }
