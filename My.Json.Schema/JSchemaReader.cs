@@ -34,7 +34,7 @@ namespace My.Json.Schema
                 if (String.IsNullOrWhiteSpace(refStr)) throw new JSchemaException("empty reference");                
 
                 if (refStr.Equals("#"))
-                    return _schemaStack.First();                
+                    return _schemaStack.Last();                
 
                 if (refStr.Contains('#'))
                 {
@@ -222,7 +222,7 @@ namespace My.Json.Schema
             }
             else
             {
-                //jschema._items = new ItemsSchema(new JSchema());
+                jschema.ItemsSchema = new JSchema();
             }
             if (jtoken.TryGetValue("dependencies", out t))
             {

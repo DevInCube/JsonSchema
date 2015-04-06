@@ -28,8 +28,8 @@ namespace My.Json.Schema
                     }
                 if (!matchesEnum) return false;
             }
-            //type
 
+            //type
             bool validType = false;
 
             if (data.Type == JTokenType.Null)
@@ -149,7 +149,6 @@ namespace My.Json.Schema
 
                 validType = true;
             }
-
             if (data.Type == JTokenType.Array)
             {
                 if (!(schema.Type.HasFlag(JSchemaType.Array)
@@ -208,7 +207,6 @@ namespace My.Json.Schema
 
                 validType = true;
             }
-
             if (data.Type == JTokenType.Object)
             {
                 if (!(schema.Type.HasFlag(JSchemaType.Object)
@@ -288,13 +286,14 @@ namespace My.Json.Schema
             }
 
             if (!validType) return false;
-            //@todo
+            
             //all of
             if (schema.AllOf.Count > 0)
             {
                 foreach (JSchema allOfSchema in schema.AllOf)
                     if (!data.IsValid(allOfSchema)) return false;
             }
+
             //any of 
             if (schema.AnyOf.Count > 0)
             {
@@ -307,6 +306,7 @@ namespace My.Json.Schema
                     }
                 if (!validAnyOf) return false;
             }
+
             // one of
             if (schema.OneOf.Count > 0)
             {
@@ -319,11 +319,13 @@ namespace My.Json.Schema
                     }
                 if (!validOneOf) return false;
             }
+
             // not 
             if (schema.Not != null)
             {
                 if (data.IsValid(schema.Not)) return false;
             }
+
             //definiitions
             //@todo parse and validate
 
