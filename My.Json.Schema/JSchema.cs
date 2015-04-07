@@ -278,6 +278,5 @@ namespace My.Json.Schema
             return reader.ReadSchema(jtoken, resolver);
         }
 
-
     }
 }
