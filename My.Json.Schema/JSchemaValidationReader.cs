@@ -450,7 +450,8 @@ namespace My.Json.Schema
             ValidationErrorHandler handler = ErrorHandled;
             if (handler != null)
             {
-                ValidationError error = new ValidationError(message);
+                string path = (data == null || String.IsNullOrWhiteSpace(data.Path)) ? null : data.Path;
+                ValidationError error = new ValidationError(message, path);
                 error.ChildErrors = childErrors;
                 ValidationEventArgs args = new ValidationEventArgs(error);
                 ErrorHandled(this, args);
