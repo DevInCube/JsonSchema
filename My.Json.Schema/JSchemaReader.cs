@@ -183,44 +183,44 @@ namespace My.Json.Schema
             return jschema;
         }
 
-        private void ProcessSchemaProperty(JSchema jschema, string name, JToken t)
+        private void ProcessSchemaProperty(JSchema jschema, string name, JToken value)
         {
             switch (name)
             {
                 case ("id"):
                     {
-                        jschema.Id = ReadString(t, name);
+                        jschema.Id = ReadString(value, name);
                         break;
                     }
                 case ("title"):
                     {
-                        jschema.Title = ReadString(t, name);
+                        jschema.Title = ReadString(value, name);
                         break;
                     }
                 case ("description"):
                     {
-                        jschema.Description = ReadString(t, name);
+                        jschema.Description = ReadString(value, name);
                         break;
                     }
                 case ("default"):
                     {
-                        jschema.Default = t;
+                        jschema.Default = value;
                         break;
                     }
                 case ("format"):
                     {
-                        jschema.Format = ReadString(t, name);
+                        jschema.Format = ReadString(value, name);
                         break;
                     }
                 case ("type"):
                     {
-                        if (t.Type == JTokenType.String)
+                        if (value.Type == JTokenType.String)
                         {
-                            jschema.Type = JSchemaTypeHelpers.ParseType(t.Value<string>());
+                            jschema.Type = JSchemaTypeHelpers.ParseType(value.Value<string>());
                         }
-                        else if (t.Type == JTokenType.Array)
+                        else if (value.Type == JTokenType.Array)
                         {
-                            JEnumerable<JToken> array = t.Value<JArray>().Children();
+                            JEnumerable<JToken> array = value.Value<JArray>().Children();
                             if (array.Count() == 0) throw new JSchemaException();
                             foreach (var arrItem in array)
                             {
@@ -236,42 +236,42 @@ namespace My.Json.Schema
                                 }
                             }
                         }
-                        else throw new JSchemaException("type is " + t.Type.ToString());
+                        else throw new JSchemaException("type is " + value.Type.ToString());
                         break;
                     }
                 case ("pattern"):
                     {
-                        jschema.Pattern = ReadString(t, name);
+                        jschema.Pattern = ReadString(value, name);
                         break;
                     }
                 case ("items"):
                     {
-                        if (t.Type == JTokenType.Undefined
-                            || t.Type == JTokenType.Null)
+                        if (value.Type == JTokenType.Undefined
+                            || value.Type == JTokenType.Null)
                         {
                             jschema.ItemsSchema = new JSchema();
                         }
-                        else if (t.Type == JTokenType.Object)
+                        else if (value.Type == JTokenType.Object)
                         {
-                            JObject obj = t as JObject;
+                            JObject obj = value as JObject;
                             jschema.ItemsSchema = ReadSchema(obj);
                         }
-                        else if (t.Type == JTokenType.Array)
+                        else if (value.Type == JTokenType.Array)
                         {
-                            foreach (var jsh in (t as JArray).Children())
+                            foreach (var jsh in (value as JArray).Children())
                             {
                                 if (jsh.Type != JTokenType.Object) throw new JSchemaException();
                                 JObject jobj = jsh as JObject;
                                 jschema.ItemsArray.Add(ReadSchema(jobj));
                             }
                         }
-                        else throw new JSchemaException("items is " + t.Type.ToString());
+                        else throw new JSchemaException("items is " + value.Type.ToString());
                         break;
                     }
                 case ("dependencies"):
                     {
-                        if (t.Type != JTokenType.Object) throw new JSchemaException();
-                        JObject dependencies = t as JObject;
+                        if (value.Type != JTokenType.Object) throw new JSchemaException();
+                        JObject dependencies = value as JObject;
 
                         foreach (var prop in dependencies.Properties())
                         {
@@ -308,8 +308,8 @@ namespace My.Json.Schema
                     }
                 case ("definitions"):
                     {
-                        if (t.Type != JTokenType.Object) throw new JSchemaException();
-                        JObject definitions = t as JObject;
+                        if (value.Type != JTokenType.Object) throw new JSchemaException();
+                        JObject definitions = value as JObject;
 
                         jschema.ExtensionData["definitions"] = definitions;
 
@@ -331,8 +331,8 @@ namespace My.Json.Schema
                     }
                 case ("properties"):
                     {
-                        if (t.Type != JTokenType.Object) throw new JSchemaException();
-                        JObject props = t as JObject;
+                        if (value.Type != JTokenType.Object) throw new JSchemaException();
+                        JObject props = value as JObject;
                         foreach (var prop in props.Properties())
                         {
                             JToken val = prop.Value;
@@ -344,8 +344,8 @@ namespace My.Json.Schema
                     }
                 case ("patternProperties"):
                     {
-                        if (t.Type != JTokenType.Object) throw new JSchemaException();
-                        JObject props = t as JObject;
+                        if (value.Type != JTokenType.Object) throw new JSchemaException();
+                        JObject props = value as JObject;
                         foreach (var prop in props.Properties())
                         {
                             JToken val = prop.Value;
@@ -357,71 +357,71 @@ namespace My.Json.Schema
                     }
                 case ("multipleOf"):
                     {
-                        jschema.MultipleOf = ReadDouble(t, name);
+                        jschema.MultipleOf = ReadDouble(value, name);
                         break;
                     }
                 case ("maximum"):
                     {
-                        jschema.Maximum = ReadDouble(t, name);
+                        jschema.Maximum = ReadDouble(value, name);
                         break;
                     }
                 case ("minimum"):
                     {
-                        jschema.Minimum = ReadDouble(t, name);
+                        jschema.Minimum = ReadDouble(value, name);
                         break;
                     }
                 case ("exclusiveMaximum"):
                     {
                         if (jschema.Maximum == null) throw new JSchemaException("maximum not set");
-                        jschema.ExclusiveMaximum = ReadBoolean(t, name);
+                        jschema.ExclusiveMaximum = ReadBoolean(value, name);
                         break;
                     }
                 case ("exclusiveMinimum"):
                     {
                         if (jschema.Minimum == null) throw new JSchemaException("minimum not set");
-                        jschema.ExclusiveMinimum = ReadBoolean(t, name);
+                        jschema.ExclusiveMinimum = ReadBoolean(value, name);
                         break;
                     }
                 case ("maxLength"):
                     {
-                        jschema.MaxLength = ReadInteger(t, name);
+                        jschema.MaxLength = ReadInteger(value, name);
                         break;
                     }
                 case ("minLength"):
                     {
-                        jschema.MinLength = ReadInteger(t, name);
+                        jschema.MinLength = ReadInteger(value, name);
                         break;
                     }
                 case ("maxItems"):
                     {
-                        jschema.MaxItems = ReadInteger(t, name);
+                        jschema.MaxItems = ReadInteger(value, name);
                         break;
                     }
                 case ("minItems"):
                     {
-                        jschema.MinItems = ReadInteger(t, name);
+                        jschema.MinItems = ReadInteger(value, name);
                         break;
                     }
                 case ("uniqueItems"):
                     {
-                        jschema.UniqueItems = ReadBoolean(t, name);
+                        jschema.UniqueItems = ReadBoolean(value, name);
                         break;
                     }
                 case ("maxProperties"):
                     {
-                        jschema.MaxProperties = ReadInteger(t, name);
+                        jschema.MaxProperties = ReadInteger(value, name);
                         break;
                     }
                 case ("minProperties"):
                     {
-                        jschema.MinProperties = ReadInteger(t, name);
+                        jschema.MinProperties = ReadInteger(value, name);
                         break;
                     }
                 case ("required"):
                     {
-                        if (t.Type != JTokenType.Array) throw new JSchemaException();
-                        JArray array = t as JArray;
-                        if (t.Count() == 0) throw new JSchemaException();
+                        if (value.Type != JTokenType.Array) throw new JSchemaException();
+                        JArray array = value as JArray;
+                        if (value.Count() == 0) throw new JSchemaException();
                         foreach (var req in array.Children())
                         {
                             if (!(req.Type == JTokenType.String)) throw new JSchemaException();
@@ -433,9 +433,9 @@ namespace My.Json.Schema
                     }
                 case ("enum"):
                     {
-                        if (t.Type != JTokenType.Array) throw new JSchemaException();
-                        JArray array = t as JArray;
-                        if (t.Count() == 0) throw new JSchemaException();
+                        if (value.Type != JTokenType.Array) throw new JSchemaException();
+                        JArray array = value as JArray;
+                        if (value.Count() == 0) throw new JSchemaException();
                         foreach (var enumItem in array.Children())
                         {
                             if (jschema.Enum.Contains(enumItem)) throw new JSchemaException("already contains");
@@ -445,65 +445,65 @@ namespace My.Json.Schema
                     }
                 case ("additionalProperties"):
                     {
-                        if (!(t.Type == JTokenType.Boolean || t.Type == JTokenType.Object)) throw new JSchemaException();
-                        if (t.Type == JTokenType.Boolean)
+                        if (!(value.Type == JTokenType.Boolean || value.Type == JTokenType.Object)) throw new JSchemaException();
+                        if (value.Type == JTokenType.Boolean)
                         {
-                            bool allow = t.Value<bool>();
+                            bool allow = value.Value<bool>();
                             jschema.AllowAdditionalProperties = allow;
                         }
-                        else if (t.Type == JTokenType.Object)
+                        else if (value.Type == JTokenType.Object)
                         {
-                            JObject obj = t as JObject;
+                            JObject obj = value as JObject;
                             jschema.AdditionalProperties = ReadSchema(obj);
                         }
                         break;
                     }
                 case ("allOf"):
                     {
-                        var schemas = ReadSchemaArray(t, name);
+                        var schemas = ReadSchemaArray(value, name);
                         foreach (var sh in schemas)
                             jschema.AllOf.Add(sh);
                         break;
                     }
                 case ("anyOf"):
                     {
-                        var schemas = ReadSchemaArray(t, name);
+                        var schemas = ReadSchemaArray(value, name);
                         foreach (var sh in schemas)
                             jschema.AnyOf.Add(sh);
                         break;
                     }
                 case ("oneOf"):
                     {
-                        var schemas = ReadSchemaArray(t, name);           
+                        var schemas = ReadSchemaArray(value, name);           
                         foreach(var sh in schemas)
                             jschema.OneOf.Add(sh);
                         break;
                     }
                 case ("not"):
                     {
-                        if (t.Type != JTokenType.Object) throw new JSchemaException();
-                        JObject obj = t as JObject;
+                        if (value.Type != JTokenType.Object) throw new JSchemaException();
+                        JObject obj = value as JObject;
                         jschema.Not = ReadSchema(obj);
                         break;
                     }
                 case ("additionalItems"):
                     {
-                        if (!(t.Type == JTokenType.Boolean || t.Type == JTokenType.Object)) throw new JSchemaException();
-                        if (t.Type == JTokenType.Boolean)
+                        if (!(value.Type == JTokenType.Boolean || value.Type == JTokenType.Object)) throw new JSchemaException();
+                        if (value.Type == JTokenType.Boolean)
                         {
-                            bool allow = t.Value<bool>();
+                            bool allow = value.Value<bool>();
                             jschema.AllowAdditionalItems = allow;
                         }
-                        else if (t.Type == JTokenType.Object)
+                        else if (value.Type == JTokenType.Object)
                         {
-                            JObject obj = t as JObject;
+                            JObject obj = value as JObject;
                             jschema.AdditionalItems = ReadSchema(obj);
                         }
                         break;
                     }
                 default:
                     {
-                        jschema.ExtensionData[name] = t;
+                        jschema.ExtensionData[name] = value;
                         break;
                     }
             }

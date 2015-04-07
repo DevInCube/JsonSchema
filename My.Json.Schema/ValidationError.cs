@@ -38,10 +38,8 @@ namespace My.Json.Schema
         {
             this.message = message;
             string path = (data == null || String.IsNullOrWhiteSpace(data.Path)) ? null : data.Path;
-            if(data != null){
+            if(data != null)
                 LineInfo = (data as IJsonLineInfo);
-            }
-           
             this.path = path;
         }
 
@@ -52,7 +50,7 @@ namespace My.Json.Schema
             bld.Append(Message);
             if (Path != null)
                 bld.Append(" Path: '{0}' ".FormatWith(Path));
-            if (LineInfo != null)
+            if (LineInfo != null && LineInfo.HasLineInfo())
                 bld.Append(" Line {0} Position {1} ".FormatWith(LineInfo.LineNumber, LineInfo.LinePosition));
             bld.AppendLine();
             foreach (var child in ChildErrors)
