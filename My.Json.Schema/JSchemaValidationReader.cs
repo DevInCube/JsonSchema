@@ -1,4 +1,5 @@
 ﻿using My.Json.Schema.Utilities;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -449,9 +450,8 @@ namespace My.Json.Schema
 
             ValidationErrorHandler handler = ErrorHandled;
             if (handler != null)
-            {
-                string path = (data == null || String.IsNullOrWhiteSpace(data.Path)) ? null : data.Path;
-                ValidationError error = new ValidationError(message, path);
+            {                
+                ValidationError error = new ValidationError(message, data);
                 error.ChildErrors = childErrors;
                 ValidationEventArgs args = new ValidationEventArgs(error);
                 ErrorHandled(this, args);

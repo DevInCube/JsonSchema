@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using My.Json.Schema.Utilities;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
 
 namespace My.Json.Schema
 {
@@ -14,6 +16,7 @@ namespace My.Json.Schema
 
         public string Path { get { return path; } }
         public string Message { get { return message; } }
+        public IJsonLineInfo LineInfo { get; internal set; }
         public IList<ValidationError> ChildErrors
         {
             get
@@ -31,9 +34,14 @@ namespace My.Json.Schema
             this.message = message;
         }
 
-        public ValidationError(string message, string path)
+        public ValidationError(string message, JToken data)
         {
             this.message = message;
+            string path = (data == null || String.IsNullOrWhiteSpace(data.Path)) ? null : data.Path;
+            if(data != null){
+                LineInfo = (data as IJsonLineInfo);
+            }
+           
             this.path = path;
         }
 
@@ -43,7 +51,9 @@ namespace My.Json.Schema
 
             bld.Append(Message);
             if (Path != null)
-                bld.Append("Path: {0}".FormatWith(Path));
+                bld.Append(" Path: '{0}' ".FormatWith(Path));
+            if (LineInfo != null)
+                bld.Append(" Line {0} Position {1} ".FormatWith(LineInfo.LineNumber, LineInfo.LinePosition));
             bld.AppendLine();
             foreach (var child in ChildErrors)
                 bld.AppendLine(child.CreateFullMessage());
