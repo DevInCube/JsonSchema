@@ -83,13 +83,13 @@ namespace My.Json.Schema.Tests
         public void Id_SetAbsoluteValidUri_IsValidAndMatches()
         {
             JSchema jschema = JSchema.Parse(@"{id:'http://x.y.z/rootschema.json#'}");
-            Assert.AreEqual("http://x.y.z/rootschema.json#", jschema.Id);
+            Assert.AreEqual(new Uri("http://x.y.z/rootschema.json#"), jschema.Id);
         }
         [TestMethod]
         public void Id_SetAsString_IsValidAndMatches()
         {
             JSchema jschema = JSchema.Parse(@"{id:'stringId'}");
-            Assert.AreEqual("stringId", jschema.Id);
+            Assert.AreEqual(new Uri("stringId", UriKind.Relative), jschema.Id);
         }
         [TestMethod]
         [ExpectedException(typeof(JSchemaException))]
@@ -97,6 +97,47 @@ namespace My.Json.Schema.Tests
         {
             JSchema jschema = JSchema.Parse(@"{id:{}}");            
         }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void Id_SetAsEmptyFragment_ThrowsError()
+        {
+            JSchema jschema = new JSchema();
+            jschema.Id = new Uri("#", UriKind.Relative);
+        }
+        [TestMethod]
+        public void Id_AlterResolutionScope_IsValidAndMatches()
+        {
+            string schema = @"{
+    'id': 'http://x.y.z/rootschema.json#',
+    'definitions' : {
+        'schema1': {
+            'id': '#foo'
+        },
+        'schema2': {
+            'id': 'otherschema.json',
+            'definitions' : {
+                'nested': {
+                    'id': '#bar'
+                },
+                'alsonested': {
+                    'id': 't/inner.json#a'
+                }
+            }
+        },
+        'schema3': {
+            'id': 'some://where.else/completely#'
+        },
+    },
+    'properties' : {
+        'test' : { '$ref' : 'otherschema.json#bar' }
+    }
+}";
+            JSchema jschema = JSchema.Parse(schema);
+
+            Assert.AreEqual(new Uri("#bar", UriKind.Relative), jschema.Properties["test"].Id);
+        }
+
+       
         #endregion
 
         #region title_tests

@@ -12,7 +12,9 @@ namespace My.Json.Schema
     public class JSchema
     {
 
-        private JObject schema;
+        internal JObject schema;
+
+        private Uri _Id;
         private JSchema _ItemsSchema, _AdditionalItems, _AdditionalProperties;        
         private IDictionary<string, JSchema> _properties;
         private IDictionary<string, JSchema> _pattternProperties;
@@ -32,7 +34,20 @@ namespace My.Json.Schema
 
         #region public properties
 
-        public string Id { get; set; }
+        public Uri Id
+        {
+            get { return _Id; }
+            set
+            {
+                _Id = value;
+                if (!Id.IsAbsoluteUri)
+                {
+                    if (String.IsNullOrWhiteSpace(_Id.OriginalString)
+                        || _Id.OriginalString.Equals("#"))
+                        throw new JSchemaException("invalid id");
+                }
+            }
+        }
         public JSchemaType Type { get; set; }
         public IDictionary<string, JSchema> Properties {
             get

@@ -14,9 +14,13 @@ namespace My.Json.Schema
 
         private JSchemaResolver resolver;
         private Stack<JSchema> _schemaStack = new Stack<JSchema>();
-        private IDictionary<string, JSchema> _inlineReferences;
+        private Stack<Uri> _scopeStack = new Stack<Uri>();
+        private IDictionary<Uri, JSchema> _resolutionScopes;
 
-        public JSchemaReader() { }
+        public JSchemaReader() 
+        {
+            _resolutionScopes = new Dictionary<Uri, JSchema>(new UriComparer());
+        }
 
         public JSchema ReadSchema(JObject jObject, JSchemaResolver resolver = null)
         {
@@ -25,6 +29,8 @@ namespace My.Json.Schema
             if (resolver != null)
                 this.resolver = resolver;
 
+            JSchema schema;
+
             JToken t;
             if (jObject.TryGetValue("$ref", out t))
             {
@@ -32,12 +38,27 @@ namespace My.Json.Schema
 
                 string refStr = t.Value<string>();
 
-                return ResolveReference(refStr, jObject);
+                schema = ResolveReference(refStr, jObject);
             }
             else
             {
-                return Load(jObject);
+                schema = Load(jObject);
             }
+            /*
+            if (schema.Id != null)
+            {
+                if (!schema.Id.IsAbsoluteUri)
+                {
+                    string reference = schema.Id.OriginalString;
+
+                    Uri baseUri = _schemaStack.Last().Id;
+
+                    Uri scopeUri = new Uri(baseUri, reference);
+                    _inlineReferences.Add(scopeUri, schema);
+                }
+            }
+             */
+            return schema;
         }
 
         private JSchema ResolveReference(string refStr, JObject jObject)
@@ -49,12 +70,34 @@ namespace My.Json.Schema
 
             if (refStr.Contains('#'))
             {
+                foreach (var scope in _resolutionScopes)
+                {
+                    Uri relativeUri;
+
+                    Uri baseUri = _schemaStack.Last().Id;
+
+                    if (baseUri != null && baseUri.IsAbsoluteUri)
+                        relativeUri = new Uri(baseUri, refStr);
+                    else
+                        relativeUri = new Uri(refStr, UriKind.RelativeOrAbsolute);
+
+                    Uri scopeUri = scope.Key;
+
+                    if (relativeUri.Equals(scopeUri)
+                        && relativeUri.Fragment.Equals(scopeUri.Fragment))
+                    {
+                        JSchema scopeSchema = scope.Value;
+                        return scopeSchema;
+                    }
+                }
+
                 JObject rootObject = jObject.GetRootParent() as JObject;
                 string[] fragments = refStr.Split('#');
                 string fullHost = fragments[0];
                 string path = fragments[1];
                 if (!String.IsNullOrEmpty(fullHost))
                 {
+
                     string rootId = null;
                     JToken t2;
                     if (rootObject.TryGetValue("id", out t2))
@@ -67,6 +110,9 @@ namespace My.Json.Schema
                     {
                         if (String.IsNullOrWhiteSpace(fullHost)) throw new JSchemaException();
                     }
+
+                    
+
                     if (this.resolver == null) throw new JSchemaException();
                     Uri remoteUri;
                     try
@@ -127,12 +173,28 @@ namespace My.Json.Schema
                 if (token is JObject)
                 {
                     JObject obj = token as JObject;
-                    var unescapedPropName = propName.Replace("~1", "/").Replace("~0", "~").Replace("%25", "%");
+                    string unescapedPropName = propName.Replace("~1", "/").Replace("~0", "~").Replace("%25", "%");
                     if (!obj.TryGetValue(unescapedPropName, out propVal))
                     {
                         string inline = "#" + unescapedPropName;
-                        if (_inlineReferences.ContainsKey(inline))
-                            return _inlineReferences[inline];
+                        /*
+                        Uri relativeUri;
+
+                        Uri baseUri = _schemaStack.Last().Id;
+
+                        if (baseUri != null && baseUri.IsAbsoluteUri)
+                            relativeUri = new Uri(baseUri, refStr);
+                        else
+                            relativeUri = new Uri(refStr, UriKind.RelativeOrAbsolute);
+
+                        Uri scopeUri = scope.Key;
+
+                        if (relativeUri.Equals(scopeUri)
+                            && relativeUri.Fragment.Equals(scopeUri.Fragment))
+                        {
+                        */
+                       // if (_inlineReferences.ContainsKey(inline))
+                            //return _inlineReferences[inline];
                         throw new JSchemaException("no property named " + propName);
                     }
                 }
@@ -171,13 +233,15 @@ namespace My.Json.Schema
         private JSchema Load(JObject jtoken)
         {
             JSchema jschema = new JSchema();
+            jschema.schema = jtoken;
 
             _schemaStack.Push(jschema);
 
             foreach (JProperty property in jtoken.Properties())
                 ProcessSchemaProperty(jschema, property.Name, property.Value);
 
-
+            if(_scopeStack.Count > 0)
+                _scopeStack.Pop();
 
             _schemaStack.Pop();
             return jschema;
@@ -189,7 +253,17 @@ namespace My.Json.Schema
             {
                 case ("id"):
                     {
-                        jschema.Id = ReadString(value, name);
+                        string id = ReadString(value, name);
+                        jschema.Id = new Uri(id, UriKind.RelativeOrAbsolute);
+
+                        Uri scopeUri;
+                        if (_scopeStack.Count > 0)
+                            scopeUri = new Uri(_scopeStack.Peek(), jschema.Id);
+                        else
+                            scopeUri = jschema.Id;
+                        _scopeStack.Push(scopeUri);
+                        _resolutionScopes.Add(scopeUri, jschema);
+
                         break;
                     }
                 case ("title"):
@@ -313,7 +387,6 @@ namespace My.Json.Schema
 
                         jschema.ExtensionData["definitions"] = definitions;
 
-                        _inlineReferences = new Dictionary<string, JSchema>();
                         foreach (JProperty prop in definitions.Properties())
                         {
                             if (prop.Value.Type != JTokenType.Object) throw new JSchemaException();
@@ -321,11 +394,6 @@ namespace My.Json.Schema
                             JObject def = prop.Value as JObject;
 
                             JSchema schema = ReadSchema(def, resolver);
-                            if (schema.Id != null && schema.Id.StartsWith("#"))
-                            {
-                                string reference = schema.Id;
-                                _inlineReferences.Add(reference, schema);
-                            }
                         }
                         break;
                     }
