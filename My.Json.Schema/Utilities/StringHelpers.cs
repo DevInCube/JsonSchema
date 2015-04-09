@@ -44,5 +44,21 @@ namespace My.Json.Schema.Utilities
             }
             return true;
         }
+
+        internal static bool IsValidRegex(string value)
+        {
+
+            if (String.IsNullOrEmpty(value)) return false;
+
+            try
+            {
+                new Regex(value);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
     }
 }

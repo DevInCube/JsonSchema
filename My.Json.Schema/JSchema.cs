@@ -14,23 +14,21 @@ namespace My.Json.Schema
 
         internal JObject schema;
 
+        #region private fields
+
         private Uri _Id;
         private JSchema _ItemsSchema, _AdditionalItems, _AdditionalProperties;        
-        private IDictionary<string, JSchema> _properties;
-        private IDictionary<string, JSchema> _pattternProperties;
+        private IDictionary<string, JSchema> _properties, _pattternProperties, _SchemaDependencies;
+        private string _Pattern;
         private double? _multipleOf;
-        private int? _maxLength;
-        private int? _minLength;
-        private int? _maxItems;
-        private int? _minItems;
-        private int? _maxProperties;
-        private int? _minProperties;
+        private int? _maxLength, _minLength, _maxItems, _minItems, _maxProperties, _minProperties;
         private IList<JToken> _enum;
         private IList<string> _required;        
         private IList<JSchema> _AllOf, _AnyOf, _OneOf, _ItemsArray;
-        private IDictionary<string, JSchema> _SchemaDependencies;
         private IDictionary<string, IList<string>> _PropertyDependencies;
         private IDictionary<string, JToken> _ExtensionData;
+
+        #endregion
 
         #region public properties
 
@@ -44,7 +42,7 @@ namespace My.Json.Schema
                 {
                     if (String.IsNullOrWhiteSpace(_Id.OriginalString)
                         || _Id.OriginalString.Equals("#"))
-                        throw new JSchemaException("invalid id");
+                        throw new JSchemaException("invalid id : {0}".FormatWith(Id));
                 }
             }
         }
@@ -65,8 +63,7 @@ namespace My.Json.Schema
                     _pattternProperties = new Dictionary<string, JSchema>();
                 return _pattternProperties;
             }
-        }
-       
+        }       
         public string Title { get; set; }
         public string Description { get; set; }
         public object Default { get; set; }
@@ -123,7 +120,16 @@ namespace My.Json.Schema
                 _minLength = value;
             }
         }
-        public string Pattern { get; set; }
+        public string Pattern
+        {
+            get { return _Pattern; }
+            set
+            {
+                _Pattern = value;
+                if (!StringHelpers.IsValidRegex(_Pattern)) 
+                    throw new JSchemaException("pattern is not a valid regex string");
+            }
+        }
         public int? MaxItems
         {
             get { return _maxItems; }
@@ -285,7 +291,8 @@ namespace My.Json.Schema
         public static JSchema Parse(string json, JSchemaResolver resolver)
         {
             if (json == null) throw new ArgumentNullException("schema");
-            if (String.IsNullOrWhiteSpace(json)) throw new JSchemaException();
+            if (String.IsNullOrWhiteSpace(json)) 
+                throw new JSchemaException("invalid json");
 
             JObject jtoken = JObject.Parse(json);
 

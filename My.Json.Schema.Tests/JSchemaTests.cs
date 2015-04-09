@@ -399,6 +399,22 @@ namespace My.Json.Schema.Tests
         }
 
         [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void Reference_InvalidSchemaInDefinitions_ThrowError()
+        {
+            string shStr = @"{        
+    'definitions': {
+        'schema1': {
+            'id': 1,
+            'type': 'boolean'
+        }
+    }
+}";
+            JSchema jschema = JSchema.Parse(shStr);
+        }
+
+
+        [TestMethod]
         public void Reference_SubschemaDiscovery_OK()
         {
             string shStr = @"{    
@@ -487,14 +503,6 @@ namespace My.Json.Schema.Tests
 
             Assert.AreNotEqual(null, jschema.PatternProperties);
             Assert.AreEqual(0, jschema.PatternProperties.Count);
-        }
-        [TestMethod]
-        public void patternProperties_SetOneEmptyPropertyObject_PropertyIsInDict()
-        {
-            JSchema jschema = JSchema.Parse(@"{'patternProperties':{'test':{}}}");
-
-            Assert.AreNotEqual(null, jschema.PatternProperties["test"]);
-            Assert.AreEqual(1, jschema.PatternProperties.Count);
         }
         #endregion
 
@@ -698,6 +706,20 @@ namespace My.Json.Schema.Tests
         public void Pattern_ParseAsNumber_ThrowsError()
         {
             JSchema jschema = JSchema.Parse(@"{'pattern':2.1}");
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void Pattern_SetInvalidRegex_ThrowsError()
+        {
+            JSchema sh = new JSchema();
+            sh.Pattern = "*";          
+        }
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void Pattern_SetEmptyRegex_ThrowsError()
+        {
+            JSchema sh = new JSchema();
+            sh.Pattern = "";
         }
         #endregion
 

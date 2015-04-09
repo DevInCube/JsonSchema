@@ -34,7 +34,7 @@ namespace My.Json.Schema
             JToken t;
             if (jObject.TryGetValue(SchemaKeywords.Ref, out t))
             {
-                if (!t.IsString()) throw new JSchemaException();
+                if (!t.IsString()) throw new JSchemaException("$ref should be a string");
 
                 string refStr = t.Value<string>();
 
@@ -94,12 +94,10 @@ namespace My.Json.Schema
                     }
                     else
                     {
-                        if (String.IsNullOrWhiteSpace(fullHost)) throw new JSchemaException();
+                        if (String.IsNullOrWhiteSpace(fullHost)) throw new JSchemaException("host is empty");
                     }
-
                     
-
-                    if (this.resolver == null) throw new JSchemaException();
+                    if (this.resolver == null) throw new JSchemaException("can't resolve external reference without resolver");
                     Uri remoteUri;
                     try
                     {
@@ -168,7 +166,8 @@ namespace My.Json.Schema
                 else if (token is JArray)
                 {
                     int index;
-                    if (!int.TryParse(propName, out index)) throw new JSchemaException("invalid array index " + propName);
+                    if (!int.TryParse(propName, out index)) 
+                        throw new JSchemaException("invalid array index " + propName);
                     JArray array = token as JArray;
                     propVal = array[index];
                 }
@@ -212,12 +211,14 @@ namespace My.Json.Schema
             if (defProp != null)
             {
                 JToken value = defProp.Value;
-                if (value.Type != JTokenType.Object) throw new JSchemaException();
+                if (value.Type != JTokenType.Object) 
+                    throw new JSchemaException("definitions should be an object");
                 JObject definitions = value as JObject;
 
                 foreach (JProperty prop in definitions.Properties())
                 {
-                    if (prop.Value.Type != JTokenType.Object) throw new JSchemaException();
+                    if (prop.Value.Type != JTokenType.Object) 
+                        throw new JSchemaException("definitions property should be an object");
                     JObject def = prop.Value as JObject;
 
                     JSchema schema = ReadSchema(def, resolver);
@@ -283,17 +284,18 @@ namespace My.Json.Schema
                         else if (value.Type == JTokenType.Array)
                         {
                             JEnumerable<JToken> array = value.Value<JArray>().Children();
-                            if (array.Count() == 0) throw new JSchemaException();
+                            if (array.Count() == 0) throw new JSchemaException("type array cannot be empty");
                             foreach (var arrItem in array)
                             {
                                 if (arrItem.Type != JTokenType.String)
-                                    throw new JSchemaException();
+                                    throw new JSchemaException("type array items should be strings");
                                 JSchemaType type = JSchemaTypeHelpers.ParseType(arrItem.Value<string>());
                                 if (jschema.Type == JSchemaType.None)
                                     jschema.Type = type;
                                 else
                                 {
-                                    if (jschema.Type.HasFlag(type)) throw new JSchemaException();
+                                    if (jschema.Type.HasFlag(type)) 
+                                        throw new JSchemaException("type array items are not unique");
                                     jschema.Type |= type;
                                 }
                             }
@@ -322,7 +324,8 @@ namespace My.Json.Schema
                         {
                             foreach (var jsh in (value as JArray).Children())
                             {
-                                if (jsh.Type != JTokenType.Object) throw new JSchemaException();
+                                if (jsh.Type != JTokenType.Object) 
+                                    throw new JSchemaException("items elements should be objects");
                                 JObject jobj = jsh as JObject;
                                 jschema.ItemsArray.Add(ReadSchema(jobj));
                             }
@@ -332,7 +335,8 @@ namespace My.Json.Schema
                     }
                 case (SchemaKeywords.Dependencies):
                     {
-                        if (value.Type != JTokenType.Object) throw new JSchemaException();
+                        if (value.Type != JTokenType.Object) 
+                            throw new JSchemaException("dependencies should be an object");
                         JObject dependencies = value as JObject;
 
                         foreach (var prop in dependencies.Properties())
@@ -347,35 +351,39 @@ namespace My.Json.Schema
                             {
                                 JArray dep = dependency as JArray;
 
-                                if (dep.Count == 0) throw new JSchemaException();
+                                if (dep.Count == 0) 
+                                    throw new JSchemaException("property dependencies array cannot be empty");
 
                                 jschema.PropertyDependencies.Add(prop.Name, new List<string>());
 
                                 foreach (var depItem in dep.Children())
                                 {
-                                    if (depItem.Type != JTokenType.String) throw new JSchemaException();
+                                    if (depItem.Type != JTokenType.String) 
+                                        throw new JSchemaException("property dependencies array elements should be strings");
 
                                     string propName = depItem.Value<string>();
 
                                     if (jschema.PropertyDependencies[prop.Name].Contains(propName))
-                                        throw new JSchemaException();
+                                        throw new JSchemaException("property dependencies array elements are not unique");
 
                                     jschema.PropertyDependencies[prop.Name].Add(propName);
                                 }
                             }
                             else
-                                throw new JSchemaException();
+                                throw new JSchemaException("dependencies property should be an object or array");
                         }
                         break;
                     }
                 case (SchemaKeywords.Properties):
                     {
-                        if (value.Type != JTokenType.Object) throw new JSchemaException();
+                        if (value.Type != JTokenType.Object) 
+                            throw new JSchemaException("properties should be an object");
                         JObject props = value as JObject;
                         foreach (var prop in props.Properties())
                         {
                             JToken val = prop.Value;
-                            if (!(val.Type == JTokenType.Object)) throw new JSchemaException();
+                            if (!(val.Type == JTokenType.Object)) 
+                                throw new JSchemaException("properties property should be an object");
                             JObject objVal = val as JObject;
                             jschema.Properties[prop.Name] = ReadSchema(objVal);
                         }
@@ -383,12 +391,14 @@ namespace My.Json.Schema
                     }
                 case (SchemaKeywords.PatternProperties):
                     {
-                        if (value.Type != JTokenType.Object) throw new JSchemaException();
+                        if (value.Type != JTokenType.Object)
+                            throw new JSchemaException("patternProperties should be an object");
                         JObject props = value as JObject;
                         foreach (var prop in props.Properties())
                         {
                             JToken val = prop.Value;
-                            if (!(val.Type == JTokenType.Object)) throw new JSchemaException();
+                            if (!(val.Type == JTokenType.Object))
+                                throw new JSchemaException("patternProperties property should be an object");
                             JObject objVal = val as JObject;
                             jschema.PatternProperties[prop.Name] = ReadSchema(objVal);
                         }
@@ -411,13 +421,15 @@ namespace My.Json.Schema
                     }
                 case (SchemaKeywords.ExclusiveMaximum):
                     {
-                        if (jschema.Maximum == null) throw new JSchemaException("maximum not set");
+                        if (jschema.Maximum == null) 
+                            throw new JSchemaException("maximum value was not set");
                         jschema.ExclusiveMaximum = ReadBoolean(value, name);
                         break;
                     }
                 case (SchemaKeywords.ExclusiveMinimum):
                     {
-                        if (jschema.Minimum == null) throw new JSchemaException("minimum not set");
+                        if (jschema.Minimum == null)
+                            throw new JSchemaException("minimum not set");
                         jschema.ExclusiveMinimum = ReadBoolean(value, name);
                         break;
                     }
@@ -458,26 +470,33 @@ namespace My.Json.Schema
                     }
                 case (SchemaKeywords.Required):
                     {
-                        if (value.Type != JTokenType.Array) throw new JSchemaException();
+                        if (value.Type != JTokenType.Array) 
+                            throw new JSchemaException("required should be  an array");
                         JArray array = value as JArray;
-                        if (value.Count() == 0) throw new JSchemaException();
+                        if (value.Count() == 0) 
+                            throw new JSchemaException("required array cannot be empty");
                         foreach (var req in array.Children())
                         {
-                            if (!(req.Type == JTokenType.String)) throw new JSchemaException();
+                            if (!(req.Type == JTokenType.String)) 
+                                throw new JSchemaException("required array elements should be strings");
                             string requiredProp = req.Value<string>();
-                            if (jschema.Required.Contains(requiredProp)) throw new JSchemaException("already contains");
+                            if (jschema.Required.Contains(requiredProp)) 
+                                throw new JSchemaException("already contains");
                             jschema.Required.Add(requiredProp);
                         }
                         break;
                     }
                 case (SchemaKeywords.Enum):
                     {
-                        if (value.Type != JTokenType.Array) throw new JSchemaException();
+                        if (value.Type != JTokenType.Array)
+                            throw new JSchemaException("enum should be an array");
                         JArray array = value as JArray;
-                        if (value.Count() == 0) throw new JSchemaException();
+                        if (value.Count() == 0) 
+                            throw new JSchemaException("enum array cannot be empty");
                         foreach (var enumItem in array.Children())
                         {
-                            if (jschema.Enum.Contains(enumItem)) throw new JSchemaException("already contains");
+                            if (jschema.Enum.Contains(enumItem)) 
+                                throw new JSchemaException("already contains");
                             jschema.Enum.Add(enumItem);
                         }
                         break;
@@ -520,7 +539,8 @@ namespace My.Json.Schema
                     }
                 case (SchemaKeywords.Not):
                     {
-                        if (value.Type != JTokenType.Object) throw new JSchemaException();
+                        if (value.Type != JTokenType.Object) 
+                            throw new JSchemaException("not should be an object");
                         JObject obj = value as JObject;
                         jschema.Not = ReadSchema(obj);
                         break;
@@ -550,14 +570,17 @@ namespace My.Json.Schema
 
         private IList<JSchema> ReadSchemaArray(JToken t, string name)
         {
-            if (t.Type != JTokenType.Array) throw new JSchemaException();
+            if (t.Type != JTokenType.Array) 
+                throw new JSchemaException("{0} should be an array".FormatWith(name));
             JArray array = t as JArray;
-            if (t.Count() == 0) throw new JSchemaException();
+            if (t.Count() == 0)
+                throw new JSchemaException("{0} array cannot be empty".FormatWith(name));
 
             IList<JSchema> list = new List<JSchema>();
             foreach (var item in array.Children())
             {
-                if (!(item.Type == JTokenType.Object)) throw new JSchemaException();
+                if (!(item.Type == JTokenType.Object))
+                    throw new JSchemaException("{0} array items should be objects".FormatWith(name));
                 JObject obj = item as JObject;
                 list.Add(ReadSchema(obj));
             }

@@ -385,7 +385,7 @@ namespace My.Json.Schema
                 {
                     IList<ValidationError> childErrors;
                     if (!prop.Value.IsValid(propSchema, out childErrors))
-                        RaiseValidationError("Property {0} is not valid against schema".FormatWith(prop.Name), childErrors);
+                        RaiseValidationError("Property '{0}' is not valid against schema".FormatWith(prop.Name), childErrors);
                 }
             }
 
