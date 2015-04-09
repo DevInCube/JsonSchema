@@ -19,7 +19,7 @@ namespace My.Json.Schema
 
         public JSchemaReader() 
         {
-            _resolutionScopes = new Dictionary<Uri, JSchema>(new UriComparer());
+            _resolutionScopes = new Dictionary<Uri, JSchema>(UriComparer.Instance);
         }
 
         public JSchema ReadSchema(JObject jObject, JSchemaResolver resolver = null)
@@ -32,7 +32,7 @@ namespace My.Json.Schema
             JSchema schema;
 
             JToken t;
-            if (jObject.TryGetValue("$ref", out t))
+            if (jObject.TryGetValue(SchemaKeywords.Ref, out t))
             {
                 if (!t.IsString()) throw new JSchemaException();
 
@@ -44,20 +44,7 @@ namespace My.Json.Schema
             {
                 schema = Load(jObject);
             }
-            /*
-            if (schema.Id != null)
-            {
-                if (!schema.Id.IsAbsoluteUri)
-                {
-                    string reference = schema.Id.OriginalString;
-
-                    Uri baseUri = _schemaStack.Last().Id;
-
-                    Uri scopeUri = new Uri(baseUri, reference);
-                    _inlineReferences.Add(scopeUri, schema);
-                }
-            }
-             */
+            
             return schema;
         }
 
@@ -83,8 +70,7 @@ namespace My.Json.Schema
 
                     Uri scopeUri = scope.Key;
 
-                    if (relativeUri.Equals(scopeUri)
-                        && relativeUri.Fragment.Equals(scopeUri.Fragment))
+                    if (UriComparer.Instance.Equals(relativeUri, scopeUri))
                     {
                         JSchema scopeSchema = scope.Value;
                         return scopeSchema;
@@ -100,7 +86,7 @@ namespace My.Json.Schema
 
                     string rootId = null;
                     JToken t2;
-                    if (rootObject.TryGetValue("id", out t2))
+                    if (rootObject.TryGetValue(SchemaKeywords.Id, out t2))
                     {
                         rootId = t2.Value<string>().Split('#')[0];
                         if (rootId.Equals(fullHost))
@@ -176,25 +162,6 @@ namespace My.Json.Schema
                     string unescapedPropName = propName.Replace("~1", "/").Replace("~0", "~").Replace("%25", "%");
                     if (!obj.TryGetValue(unescapedPropName, out propVal))
                     {
-                        string inline = "#" + unescapedPropName;
-                        /*
-                        Uri relativeUri;
-
-                        Uri baseUri = _schemaStack.Last().Id;
-
-                        if (baseUri != null && baseUri.IsAbsoluteUri)
-                            relativeUri = new Uri(baseUri, refStr);
-                        else
-                            relativeUri = new Uri(refStr, UriKind.RelativeOrAbsolute);
-
-                        Uri scopeUri = scope.Key;
-
-                        if (relativeUri.Equals(scopeUri)
-                            && relativeUri.Fragment.Equals(scopeUri.Fragment))
-                        {
-                        */
-                       // if (_inlineReferences.ContainsKey(inline))
-                            //return _inlineReferences[inline];
                         throw new JSchemaException("no property named " + propName);
                     }
                 }
@@ -237,8 +204,29 @@ namespace My.Json.Schema
 
             _schemaStack.Push(jschema);
 
-            foreach (JProperty property in jtoken.Properties())
-                ProcessSchemaProperty(jschema, property.Name, property.Value);
+            var idProp = jtoken.Property(SchemaKeywords.Id);
+            if (idProp != null)
+                ProcessSchemaProperty(jschema, idProp.Name, idProp.Value);
+
+            var defProp = jtoken.Property(SchemaKeywords.Definitions);
+            if (defProp != null)
+            {
+                JToken value = defProp.Value;
+                if (value.Type != JTokenType.Object) throw new JSchemaException();
+                JObject definitions = value as JObject;
+
+                foreach (JProperty prop in definitions.Properties())
+                {
+                    if (prop.Value.Type != JTokenType.Object) throw new JSchemaException();
+                    JObject def = prop.Value as JObject;
+
+                    JSchema schema = ReadSchema(def, resolver);
+                }
+            }
+
+            foreach (JProperty property in jtoken.Properties())       
+                if(!property.Name.Equals(SchemaKeywords.Id))
+                    ProcessSchemaProperty(jschema, property.Name, property.Value);
 
             if(_scopeStack.Count > 0)
                 _scopeStack.Pop();
@@ -251,7 +239,7 @@ namespace My.Json.Schema
         {
             switch (name)
             {
-                case ("id"):
+                case (SchemaKeywords.Id):
                     {
                         string id = ReadString(value, name);
                         jschema.Id = new Uri(id, UriKind.RelativeOrAbsolute);
@@ -266,27 +254,27 @@ namespace My.Json.Schema
 
                         break;
                     }
-                case ("title"):
+                case (SchemaKeywords.Title):
                     {
                         jschema.Title = ReadString(value, name);
                         break;
                     }
-                case ("description"):
+                case (SchemaKeywords.Description):
                     {
                         jschema.Description = ReadString(value, name);
                         break;
                     }
-                case ("default"):
+                case (SchemaKeywords.Default):
                     {
                         jschema.Default = value;
                         break;
                     }
-                case ("format"):
+                case (SchemaKeywords.Format):
                     {
                         jschema.Format = ReadString(value, name);
                         break;
                     }
-                case ("type"):
+                case (SchemaKeywords.Type):
                     {
                         if (value.Type == JTokenType.String)
                         {
@@ -313,12 +301,12 @@ namespace My.Json.Schema
                         else throw new JSchemaException("type is " + value.Type.ToString());
                         break;
                     }
-                case ("pattern"):
+                case (SchemaKeywords.Pattern):
                     {
                         jschema.Pattern = ReadString(value, name);
                         break;
                     }
-                case ("items"):
+                case (SchemaKeywords.Items):
                     {
                         if (value.Type == JTokenType.Undefined
                             || value.Type == JTokenType.Null)
@@ -342,7 +330,7 @@ namespace My.Json.Schema
                         else throw new JSchemaException("items is " + value.Type.ToString());
                         break;
                     }
-                case ("dependencies"):
+                case (SchemaKeywords.Dependencies):
                     {
                         if (value.Type != JTokenType.Object) throw new JSchemaException();
                         JObject dependencies = value as JObject;
@@ -380,24 +368,7 @@ namespace My.Json.Schema
                         }
                         break;
                     }
-                case ("definitions"):
-                    {
-                        if (value.Type != JTokenType.Object) throw new JSchemaException();
-                        JObject definitions = value as JObject;
-
-                        jschema.ExtensionData["definitions"] = definitions;
-
-                        foreach (JProperty prop in definitions.Properties())
-                        {
-                            if (prop.Value.Type != JTokenType.Object) throw new JSchemaException();
-
-                            JObject def = prop.Value as JObject;
-
-                            JSchema schema = ReadSchema(def, resolver);
-                        }
-                        break;
-                    }
-                case ("properties"):
+                case (SchemaKeywords.Properties):
                     {
                         if (value.Type != JTokenType.Object) throw new JSchemaException();
                         JObject props = value as JObject;
@@ -410,7 +381,7 @@ namespace My.Json.Schema
                         }
                         break;
                     }
-                case ("patternProperties"):
+                case (SchemaKeywords.PatternProperties):
                     {
                         if (value.Type != JTokenType.Object) throw new JSchemaException();
                         JObject props = value as JObject;
@@ -423,69 +394,69 @@ namespace My.Json.Schema
                         }
                         break;
                     }
-                case ("multipleOf"):
+                case (SchemaKeywords.MultipleOf):
                     {
                         jschema.MultipleOf = ReadDouble(value, name);
                         break;
                     }
-                case ("maximum"):
+                case (SchemaKeywords.Maximum):
                     {
                         jschema.Maximum = ReadDouble(value, name);
                         break;
                     }
-                case ("minimum"):
+                case (SchemaKeywords.Minimum):
                     {
                         jschema.Minimum = ReadDouble(value, name);
                         break;
                     }
-                case ("exclusiveMaximum"):
+                case (SchemaKeywords.ExclusiveMaximum):
                     {
                         if (jschema.Maximum == null) throw new JSchemaException("maximum not set");
                         jschema.ExclusiveMaximum = ReadBoolean(value, name);
                         break;
                     }
-                case ("exclusiveMinimum"):
+                case (SchemaKeywords.ExclusiveMinimum):
                     {
                         if (jschema.Minimum == null) throw new JSchemaException("minimum not set");
                         jschema.ExclusiveMinimum = ReadBoolean(value, name);
                         break;
                     }
-                case ("maxLength"):
+                case (SchemaKeywords.MaximumLength):
                     {
                         jschema.MaxLength = ReadInteger(value, name);
                         break;
                     }
-                case ("minLength"):
+                case (SchemaKeywords.MinimumLength):
                     {
                         jschema.MinLength = ReadInteger(value, name);
                         break;
                     }
-                case ("maxItems"):
+                case (SchemaKeywords.MaximumItems):
                     {
                         jschema.MaxItems = ReadInteger(value, name);
                         break;
                     }
-                case ("minItems"):
+                case (SchemaKeywords.MinimumItems):
                     {
                         jschema.MinItems = ReadInteger(value, name);
                         break;
                     }
-                case ("uniqueItems"):
+                case (SchemaKeywords.UniqueItems):
                     {
                         jschema.UniqueItems = ReadBoolean(value, name);
                         break;
                     }
-                case ("maxProperties"):
+                case (SchemaKeywords.MaximumProperties):
                     {
                         jschema.MaxProperties = ReadInteger(value, name);
                         break;
                     }
-                case ("minProperties"):
+                case (SchemaKeywords.MinimumProperties):
                     {
                         jschema.MinProperties = ReadInteger(value, name);
                         break;
                     }
-                case ("required"):
+                case (SchemaKeywords.Required):
                     {
                         if (value.Type != JTokenType.Array) throw new JSchemaException();
                         JArray array = value as JArray;
@@ -499,7 +470,7 @@ namespace My.Json.Schema
                         }
                         break;
                     }
-                case ("enum"):
+                case (SchemaKeywords.Enum):
                     {
                         if (value.Type != JTokenType.Array) throw new JSchemaException();
                         JArray array = value as JArray;
@@ -511,7 +482,7 @@ namespace My.Json.Schema
                         }
                         break;
                     }
-                case ("additionalProperties"):
+                case (SchemaKeywords.AdditionalProperties):
                     {
                         if (!(value.Type == JTokenType.Boolean || value.Type == JTokenType.Object)) throw new JSchemaException();
                         if (value.Type == JTokenType.Boolean)
@@ -526,35 +497,35 @@ namespace My.Json.Schema
                         }
                         break;
                     }
-                case ("allOf"):
+                case (SchemaKeywords.AllOf):
                     {
                         var schemas = ReadSchemaArray(value, name);
                         foreach (var sh in schemas)
                             jschema.AllOf.Add(sh);
                         break;
                     }
-                case ("anyOf"):
+                case (SchemaKeywords.AnyOf):
                     {
                         var schemas = ReadSchemaArray(value, name);
                         foreach (var sh in schemas)
                             jschema.AnyOf.Add(sh);
                         break;
                     }
-                case ("oneOf"):
+                case (SchemaKeywords.OneOf):
                     {
                         var schemas = ReadSchemaArray(value, name);           
                         foreach(var sh in schemas)
                             jschema.OneOf.Add(sh);
                         break;
                     }
-                case ("not"):
+                case (SchemaKeywords.Not):
                     {
                         if (value.Type != JTokenType.Object) throw new JSchemaException();
                         JObject obj = value as JObject;
                         jschema.Not = ReadSchema(obj);
                         break;
                     }
-                case ("additionalItems"):
+                case (SchemaKeywords.AdditionalItems):
                     {
                         if (!(value.Type == JTokenType.Boolean || value.Type == JTokenType.Object)) throw new JSchemaException();
                         if (value.Type == JTokenType.Boolean)

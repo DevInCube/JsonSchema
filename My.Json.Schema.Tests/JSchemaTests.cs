@@ -362,6 +362,73 @@ namespace My.Json.Schema.Tests
             var sh = jschema.Properties["refTest"];
             Assert.IsTrue(sh.Type.HasFlag(JSchemaType.Boolean));
         }
+
+        [TestMethod]
+        public void Reference_InlineDereferencingReverseOrder_OK()
+        {
+            string shStr = @"{
+    'id': 'http://some.site/schema#',
+    'not': { '$ref': '#inner' },
+    'definitions': {
+        'schema1': {
+            'id': '#inner',
+            'type': 'boolean'
+        }
+    }
+}";
+            JSchema jschema = JSchema.Parse(shStr);
+            var sh = jschema.Not;
+            Assert.IsTrue(sh.Type.HasFlag(JSchemaType.Boolean));
+        }
+
+        [TestMethod]
+        public void Reference_InlineDereferencingWithoutBaseUri_OK()
+        {
+            string shStr = @"{    
+    'not': { '$ref': '#inner' },
+    'definitions': {
+        'schema1': {
+            'id': '#inner',
+            'type': 'boolean'
+        }
+    }
+}";
+            JSchema jschema = JSchema.Parse(shStr);
+            var sh = jschema.Not;
+            Assert.IsTrue(sh.Type.HasFlag(JSchemaType.Boolean));
+        }
+
+        [TestMethod]
+        public void Reference_SubschemaDiscovery_OK()
+        {
+            string shStr = @"{    
+    'not': { '$ref': '#/inner' },
+    'additionalProperties': { '$ref': '#/inner/schema1' },
+    'inner': {
+        'title' : 'ok',
+        'schema1': {
+            'title' : 'ok/ok',
+            'id': '#inner',
+            'type': 'boolean'
+        }
+    }
+}";
+            JSchema jschema = JSchema.Parse(shStr);
+            Assert.AreEqual("ok", jschema.Not.Title);
+            Assert.AreEqual("ok/ok", jschema.AdditionalProperties.Title);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(JSchemaException))]
+        public void Reference_NonExistingSubschemaDiscovery_ThrowError()
+        {
+            string shStr = @"{    
+    'not': { '$ref': '#/inner' },    
+}";
+            JSchema jschema = JSchema.Parse(shStr);
+        }        
+
+
         [TestMethod]
         public void Reference_Loop_PointersEquals()
         {

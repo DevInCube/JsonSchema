@@ -51,6 +51,7 @@
     <Compile Include="JSchemaValidationReader.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SchemaExtensions.cs" />
+    <Compile Include="SchemaKeywords.cs" />
     <Compile Include="UriComparer.cs" />
     <Compile Include="Utilities\DateTimeHelpers.cs" />
     <Compile Include="Utilities\EMailHelpers.cs" />
