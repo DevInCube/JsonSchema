@@ -209,9 +209,13 @@ namespace My.Json.Schema
 
             _schemaStack.Push(jschema);
 
+            bool popAfter = false;
             var idProp = jtoken.Property(SchemaKeywords.Id);
             if (idProp != null)
+            {
+                popAfter = true;
                 ProcessSchemaProperty(jschema, idProp.Name, idProp.Value);
+            }
 
             var defProp = jtoken.Property(SchemaKeywords.Definitions);
             if (defProp != null)
@@ -235,7 +239,7 @@ namespace My.Json.Schema
                 if (!property.Name.Equals(SchemaKeywords.Id))
                     ProcessSchemaProperty(jschema, property.Name, property.Value);
 
-            if (_scopeStack.Count > 0)
+            if (popAfter && _scopeStack.Count > 0)
                 _scopeStack.Pop();
 
             _schemaStack.Pop();
@@ -257,7 +261,7 @@ namespace My.Json.Schema
                         else
                             scopeUri = jschema.Id;
                         _scopeStack.Push(scopeUri);
-                        _resolutionScopes.Add(scopeUri, jschema);
+                        _resolutionScopes[scopeUri] = jschema;
 
                         break;
                     }
