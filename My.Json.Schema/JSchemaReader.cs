@@ -22,12 +22,12 @@ namespace My.Json.Schema
             _resolutionScopes = new Dictionary<Uri, JSchema>(UriComparer.Instance);
         }
 
-        public JSchema ReadSchema(JObject jObject, JSchemaResolver resolver = null)
+        public JSchema ReadSchema(JObject jObject, JSchemaResolver inResolver = null)
         {
             if (jObject == null) throw new ArgumentNullException("jObject");
 
-            if (resolver != null)
-                this.resolver = resolver;
+            if (inResolver != null)
+                this.resolver = inResolver;
 
             JSchema schema;
 
@@ -189,7 +189,7 @@ namespace My.Json.Schema
             }
             if (!(token is JObject))
                 throw new JSchemaException(JSchemaException.FormatMessage("ref to non-object", token.Path, token));
-            return ReadSchema(token as JObject);
+            return ReadSchema(token as JObject, resolver);
         }
 
         internal JSchema ResolveExternalReference(Uri newUri)
@@ -199,8 +199,9 @@ namespace My.Json.Schema
             JObject obj = JObject.Load(new JsonTextReader(new StreamReader(resolver.GetSchemaResource(newUri))));
 
             JSchemaReader externalReader = new JSchemaReader();
+            externalReader.resolver = resolver;
             JSchema externalSchema;
-            string[] fragments = newUri.OriginalString.Split('#');
+            string[] fragments = newUri.OriginalString.Split('#');            
             if (fragments.Length > 1)
                 externalSchema = externalReader.ResolveInternalReference(fragments[1], obj);
             else
@@ -334,7 +335,7 @@ namespace My.Json.Schema
                         else if (value.Type == JTokenType.Object)
                         {
                             JObject obj = value as JObject;
-                            jschema.ItemsSchema = ReadSchema(obj);
+                            jschema.ItemsSchema = ReadSchema(obj, resolver);
                         }
                         else if (value.Type == JTokenType.Array)
                         {
@@ -343,7 +344,7 @@ namespace My.Json.Schema
                                 if (jsh.Type != JTokenType.Object)
                                     throw new JSchemaException(JSchemaException.FormatMessage("items elements should be objects", value.Path, value));
                                 JObject jobj = jsh as JObject;
-                                jschema.ItemsArray.Add(ReadSchema(jobj));
+                                jschema.ItemsArray.Add(ReadSchema(jobj, resolver));
                             }
                         }
                         else throw new JSchemaException(JSchemaException.FormatMessage("items is " + value.Type.ToString(), value.Path, value));
@@ -361,7 +362,7 @@ namespace My.Json.Schema
                             if (dependency.Type == JTokenType.Object)
                             {
                                 JObject dep = dependency as JObject;
-                                jschema.SchemaDependencies.Add(prop.Name, ReadSchema(dep));
+                                jschema.SchemaDependencies.Add(prop.Name, ReadSchema(dep, resolver));
                             }
                             else if (dependency.Type == JTokenType.Array)
                             {
@@ -401,7 +402,7 @@ namespace My.Json.Schema
                             if (!(val.Type == JTokenType.Object))
                                 throw new JSchemaException(JSchemaException.FormatMessage("properties property should be an object", val.Path, val));
                             JObject objVal = val as JObject;
-                            jschema.Properties[prop.Name] = ReadSchema(objVal);
+                            jschema.Properties[prop.Name] = ReadSchema(objVal, resolver);
                         }
                         break;
                     }
@@ -416,7 +417,7 @@ namespace My.Json.Schema
                             if (!(val.Type == JTokenType.Object))
                                 throw new JSchemaException(JSchemaException.FormatMessage("patternProperties property should be an object", val.Path, val));
                             JObject objVal = val as JObject;
-                            jschema.PatternProperties[prop.Name] = ReadSchema(objVal);
+                            jschema.PatternProperties[prop.Name] = ReadSchema(objVal, resolver);
                         }
                         break;
                     }
@@ -528,7 +529,7 @@ namespace My.Json.Schema
                         else if (value.Type == JTokenType.Object)
                         {
                             JObject obj = value as JObject;
-                            jschema.AdditionalProperties = ReadSchema(obj);
+                            jschema.AdditionalProperties = ReadSchema(obj, resolver);
                         }
                         break;
                     }
@@ -558,7 +559,7 @@ namespace My.Json.Schema
                         if (value.Type != JTokenType.Object)
                             throw new JSchemaException(JSchemaException.FormatMessage("not should be an object", value.Path, value));
                         JObject obj = value as JObject;
-                        jschema.Not = ReadSchema(obj);
+                        jschema.Not = ReadSchema(obj, resolver);
                         break;
                     }
                 case (SchemaKeywords.AdditionalItems):
@@ -572,7 +573,7 @@ namespace My.Json.Schema
                         else if (value.Type == JTokenType.Object)
                         {
                             JObject obj = value as JObject;
-                            jschema.AdditionalItems = ReadSchema(obj);
+                            jschema.AdditionalItems = ReadSchema(obj, resolver);
                         }
                         break;
                     }
