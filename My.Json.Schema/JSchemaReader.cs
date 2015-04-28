@@ -40,6 +40,12 @@ namespace My.Json.Schema
                 string refStr = t.Value<string>();
 
                 schema = ResolveReference(refStr, jObject);
+
+                JSchema metaSchema = Load(jObject);
+                if (schema.Title == null)
+                    schema.Title = metaSchema.Title;
+                if (schema.Description == null)
+                    schema.Description = metaSchema.Description;
             }
             else
             {
