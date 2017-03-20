@@ -1,11 +1,5 @@
-﻿using My.Json.Schema.Utilities;
-using Newtonsoft.Json.Linq;
-using System;
+﻿using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
 
 namespace My.Json.Schema
 {

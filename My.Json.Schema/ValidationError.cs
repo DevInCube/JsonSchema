@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using My.Json.Schema.Utilities;
 using Newtonsoft.Json.Linq;
@@ -11,36 +10,31 @@ namespace My.Json.Schema
     public class ValidationError
     {
 
-        private readonly string message, path;
+        private readonly string _message;
+        private readonly string _path;
         private IList<ValidationError> _childErrors;
 
-        public string Path { get { return path; } }
-        public string Message { get { return message; } }
+        public string Path { get { return _path; } }
+        public string Message { get { return _message; } }
         public IJsonLineInfo LineInfo { get; internal set; }
         public IList<ValidationError> ChildErrors
         {
-            get
-            {
-                if (_childErrors == null)
-                    _childErrors = new List<ValidationError>();
-
-                return _childErrors;
-            }
+            get { return _childErrors ?? (_childErrors = new List<ValidationError>()); }
             internal set { _childErrors = value; }
         }
 
         public ValidationError(string message)
         {
-            this.message = message;
+            this._message = message;
         }
 
         public ValidationError(string message, JToken data)
         {
-            this.message = message;
+            this._message = message;
             string path = (data == null || String.IsNullOrWhiteSpace(data.Path)) ? null : data.Path;
             if(data != null)
-                LineInfo = (data as IJsonLineInfo);
-            this.path = path;
+                LineInfo = data;
+            this._path = path;
         }
 
         internal string CreateFullMessage()

@@ -1,107 +1,99 @@
 ﻿using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using My.Json.Schema.Utilities;
-using Newtonsoft.Json;
-using System.IO;
 
 namespace My.Json.Schema
 {
     public class JSchema
     {
 
-        internal JObject schema;
+        internal JObject Schema;
 
-        #region private fields
-
-        private Uri _Id;
-        private JSchema _ItemsSchema, _AdditionalItems, _AdditionalProperties;        
-        private IDictionary<string, JSchema> _properties, _pattternProperties, _SchemaDependencies;
-        private string _Pattern;
+        private Uri _id;
+        private JSchema _itemsSchema;
+        private JSchema _additionalItems;
+        private JSchema _additionalProperties;
+        private IDictionary<string, JSchema> _properties;
+        private IDictionary<string, JSchema> _pattternProperties;
+        private IDictionary<string, JSchema> _schemaDependencies;
+        private string _pattern;
         private double? _multipleOf;
-        private int? _maxLength, _minLength, _maxItems, _minItems, _maxProperties, _minProperties;
+        private int? _maxLength;
+        private int? _minLength;
+        private int? _maxItems;
+        private int? _minItems;
+        private int? _maxProperties;
+        private int? _minProperties;
         private IList<JToken> _enum;
-        private IList<string> _required;        
-        private IList<JSchema> _AllOf, _AnyOf, _OneOf, _ItemsArray;
-        private IDictionary<string, IList<string>> _PropertyDependencies;
-        private IDictionary<string, JToken> _ExtensionData;
-
-        #endregion
+        private IList<string> _required;
+        private IList<JSchema> _allOf;
+        private IList<JSchema> _anyOf;
+        private IList<JSchema> _oneOf;
+        private IList<JSchema> _itemsArray;
+        private IDictionary<string, IList<string>> _propertyDependencies;
+        private IDictionary<string, JToken> _extensionData;
 
         #region public properties
 
         public Uri Id
         {
-            get { return _Id; }
+            get { return _id; }
             set
             {
-                _Id = value;
+                _id = value;
                 if (!Id.IsAbsoluteUri)
                 {
-                    if (String.IsNullOrWhiteSpace(_Id.OriginalString)
-                        || _Id.OriginalString.Equals("#"))
+                    if (String.IsNullOrWhiteSpace(_id.OriginalString)
+                        || _id.OriginalString.Equals("#"))
                         throw new JSchemaException("invalid id : {0}".FormatWith(Id));
                 }
             }
         }
+
         public JSchemaType Type { get; set; }
-        public IDictionary<string, JSchema> Properties {
-            get
-            {
-                if (_properties == null)
-                    _properties = new Dictionary<string, JSchema>();
-                return _properties;
-            }
+
+        public IDictionary<string, JSchema> Properties
+        {
+            get { return _properties ?? (_properties = new Dictionary<string, JSchema>()); }
         }
+
         public IDictionary<string, JSchema> PatternProperties
         {
-            get
-            {
-                if (_pattternProperties == null)
-                    _pattternProperties = new Dictionary<string, JSchema>();
-                return _pattternProperties;
-            }
-        }       
+            get { return _pattternProperties ?? (_pattternProperties = new Dictionary<string, JSchema>()); }
+        }
+
         public string Title { get; set; }
         public string Description { get; set; }
         public object Default { get; set; }
         public string Format { get; set; }
+
         public JSchema ItemsSchema
         {
-            get
-            {
-                if (_ItemsSchema == null)
-                    _ItemsSchema = new JSchema();
-                return _ItemsSchema;
-            }
-            set
-            {
-                _ItemsSchema = value;
-            }
+            get { return _itemsSchema ?? (_itemsSchema = new JSchema()); }
+            set { _itemsSchema = value; }
         }
+
         public IList<JSchema> ItemsArray
         {
-            get
-            {
-                if (_ItemsArray == null)
-                    _ItemsArray = new List<JSchema>();
-                return _ItemsArray;
-            }
+            get { return _itemsArray ?? (_itemsArray = new List<JSchema>()); }
         }
+
         public double? MultipleOf
         {
             get { return _multipleOf; }
-            set {
+            set
+            {
                 if (value <= 0) throw new JSchemaException("multipleOf should be greater than zero");
-                _multipleOf = value; 
+                _multipleOf = value;
             }
         }
+
         public double? Maximum { get; set; }
         public double? Minimum { get; set; }
         public bool ExclusiveMaximum { get; set; }
         public bool ExclusiveMinimum { get; set; }
+
         public int? MaxLength
         {
             get { return _maxLength; }
@@ -111,6 +103,7 @@ namespace My.Json.Schema
                 _maxLength = value;
             }
         }
+
         public int? MinLength
         {
             get { return _minLength; }
@@ -120,16 +113,18 @@ namespace My.Json.Schema
                 _minLength = value;
             }
         }
+
         public string Pattern
         {
-            get { return _Pattern; }
+            get { return _pattern; }
             set
             {
-                _Pattern = value;
-                if (!StringHelpers.IsValidRegex(_Pattern)) 
+                _pattern = value;
+                if (!StringHelpers.IsValidRegex(_pattern))
                     throw new JSchemaException("pattern is not a valid regex string");
             }
         }
+
         public int? MaxItems
         {
             get { return _maxItems; }
@@ -139,6 +134,7 @@ namespace My.Json.Schema
                 _maxItems = value;
             }
         }
+
         public int? MinItems
         {
             get { return _minItems; }
@@ -148,7 +144,9 @@ namespace My.Json.Schema
                 _minItems = value;
             }
         }
+
         public bool UniqueItems { get; set; }
+
         public int? MaxProperties
         {
             get { return _maxProperties; }
@@ -158,6 +156,7 @@ namespace My.Json.Schema
                 _maxProperties = value;
             }
         }
+
         public int? MinProperties
         {
             get { return _minProperties; }
@@ -167,131 +166,83 @@ namespace My.Json.Schema
                 _minProperties = value;
             }
         }
+
         public IList<string> Required
         {
-            get
-            {
-                if (_required == null)
-                    _required = new List<string>();
-                return _required;
-            }
+            get { return _required ?? (_required = new List<string>()); }
         }
+
         public bool AllowAdditionalProperties { get; set; }
+
         public JSchema AdditionalProperties
         {
-            get
-            {
-                if (_AdditionalProperties == null)
-                    _AdditionalProperties = new JSchema();
-                return _AdditionalProperties;
-            }
-            set
-            {
-                _AdditionalProperties = value;
-            }
+            get { return _additionalProperties ?? (_additionalProperties = new JSchema()); }
+            set { _additionalProperties = value; }
         }
+
         public IList<JToken> Enum
         {
-            get
-            {
-                if (_enum == null)
-                    _enum = new List<JToken>();
-                return _enum;
-            }
+            get { return _enum ?? (_enum = new List<JToken>()); }
         }
+
         public IList<JSchema> AllOf
         {
-            get
-            {
-                if (_AllOf == null)
-                    _AllOf = new List<JSchema>();
-                return _AllOf;
-            }
+            get { return _allOf ?? (_allOf = new List<JSchema>()); }
         }
+
         public IList<JSchema> AnyOf
         {
-            get
-            {
-                if (_AnyOf == null)
-                    _AnyOf = new List<JSchema>();
-                return _AnyOf;
-            }
+            get { return _anyOf ?? (_anyOf = new List<JSchema>()); }
         }
+
         public IList<JSchema> OneOf
         {
-            get
-            {
-                if (_OneOf == null)
-                    _OneOf = new List<JSchema>();
-                return _OneOf;
-            }
+            get { return _oneOf ?? (_oneOf = new List<JSchema>()); }
         }
+
         public JSchema Not { get; set; }
+
         public JSchema AdditionalItems
         {
-            get
-            {
-                if (_AdditionalItems == null)
-                    _AdditionalItems = new JSchema();
-                return _AdditionalItems;
-            }
-            set
-            {
-                _AdditionalItems = value;
-            }
+            get { return _additionalItems ?? (_additionalItems = new JSchema()); }
+            set { _additionalItems = value; }
         }
+
         public bool AllowAdditionalItems { get; set; }
+
         public IDictionary<string, JSchema> SchemaDependencies
         {
-            get
-            {
-                if (_SchemaDependencies == null)
-                    _SchemaDependencies = new Dictionary<string, JSchema>();
-                return _SchemaDependencies;
-            }
+            get { return _schemaDependencies ?? (_schemaDependencies = new Dictionary<string, JSchema>()); }
         }
+
         public IDictionary<string, IList<string>> PropertyDependencies
         {
-            get
-            {
-                if (_PropertyDependencies == null)
-                    _PropertyDependencies = new Dictionary<string, IList<string>>();
-                return _PropertyDependencies;
-            }
+            get { return _propertyDependencies ?? (_propertyDependencies = new Dictionary<string, IList<string>>()); }
         }
+
         public IDictionary<string, JToken> ExtensionData
         {
-            get
-            {
-                if (_ExtensionData == null)
-                    _ExtensionData = new Dictionary<string, JToken>();
-                return _ExtensionData;
-            }
+            get { return _extensionData ?? (_extensionData = new Dictionary<string, JToken>()); }
         }
 
         #endregion
 
         public JSchema()
         {
-            schema = new JObject();            
+            Schema = new JObject();
             AllowAdditionalProperties = true;
             AllowAdditionalItems = true;
-        }   
+        }
 
         public override string ToString()
         {
-            return schema.ToString();
+            return Schema.ToString();
         }
 
-        public static JSchema Parse(string json)
+        public static JSchema Parse(string json, JSchemaResolver resolver = null)
         {
-            return Parse(json, null);
-        }
-
-        public static JSchema Parse(string json, JSchemaResolver resolver)
-        {
-            if (json == null) throw new ArgumentNullException("schema");
-            if (String.IsNullOrWhiteSpace(json)) 
+            if (json == null) throw new ArgumentNullException("json");
+            if (String.IsNullOrWhiteSpace(json))
                 throw new JSchemaException("invalid json");
 
             JObject jtoken = JObject.Parse(json);

@@ -1,7 +1,5 @@
 ﻿using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using My.Json.Schema.Utilities;
 
@@ -14,15 +12,15 @@ namespace My.Json.Schema
 
         public JSchemaException(string p) : base(p) { }
 
-        public static string FormatMessage(string Message, string Path, IJsonLineInfo LineInfo)
+        public static string FormatMessage(string message, string path, IJsonLineInfo lineInfo)
         {
             StringBuilder bld = new StringBuilder();
 
-            bld.Append(Message);
-            if (Path != null)
-                bld.Append(" Path: '{0}' ".FormatWith(Path));
-            if (LineInfo != null && LineInfo.HasLineInfo())
-                bld.Append(" Line {0} Position {1} ".FormatWith(LineInfo.LineNumber, LineInfo.LinePosition));
+            bld.Append(message);
+            if (path != null)
+                bld.Append(" Path: '{0}' ".FormatWith(path));
+            if (lineInfo != null && lineInfo.HasLineInfo())
+                bld.Append(" Line {0} Position {1} ".FormatWith(lineInfo.LineNumber, lineInfo.LinePosition));
 
             return bld.ToString();
         }

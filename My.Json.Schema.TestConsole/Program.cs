@@ -2,15 +2,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
-using My.Json.Schema;
 
 namespace My.Json.Schema.TestConsole
 {
-    class Program
+    internal static class Program
     {
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
             string remoteHost = "http://localhost:1234";
             string remoteDirectory = "Resources/remotes";
@@ -95,7 +93,7 @@ namespace My.Json.Schema.TestConsole
                     if (caseFailedCount > 0 || caseExceptionCount > 0)
                         Console.WriteLine(builder.ToString());
                 }
-                Console.WriteLine(String.Format("[{0}/{1}]---------------------------", testSuccessCount, (testSuccessCount + testFailedCount + testExceptionCount)));
+                Console.WriteLine("[{0}/{1}]---------------------------", testSuccessCount, (testSuccessCount + testFailedCount + testExceptionCount));
             }
             Console.WriteLine("===========================");
             Console.WriteLine("SUCCESS: \t" + successCount);
@@ -103,7 +101,7 @@ namespace My.Json.Schema.TestConsole
             Console.WriteLine("EXCEPTIONS: \t" + exceptionCount);
         }
 
-        static List<TestPackage> LoadTests(string testsDirPath)
+        private static List<TestPackage> LoadTests(string testsDirPath)
         {
             DirectoryInfo testsDir = new DirectoryInfo(testsDirPath);
             FileInfo[] testFiles = testsDir.GetFiles();
@@ -120,9 +118,11 @@ namespace My.Json.Schema.TestConsole
                     TestContext test = TestContext.Create(testObject);
                     tests.Add(test);
                 }
-                TestPackage pack = new TestPackage();
-                pack.Name = testFile.Name;
-                pack.Tests = tests;
+                TestPackage pack = new TestPackage
+                {
+                    Name = testFile.Name,
+                    Tests = tests
+                };
                 allTests.Add(pack);
             }
             return allTests;

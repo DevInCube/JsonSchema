@@ -1,12 +1,9 @@
 ﻿using Newtonsoft.Json.Linq;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
 namespace My.Json.Schema.TestConsole
 {
-    class TestCase
+    internal class TestCase
     {
 
         public string Description { get; private set; }
@@ -15,16 +12,18 @@ namespace My.Json.Schema.TestConsole
 
         internal static TestCase Create(JObject obj)
         {
-            if (obj == null) throw new ArgumentNullException("JObject");
+            if (obj == null) throw new ArgumentNullException("obj");
 
             string description = obj.GetValue("description").Value<string>();
             JToken data = obj.GetValue("data");
             bool valid = obj.GetValue("valid").Value<bool>();
 
-            TestCase testCase = new TestCase();
-            testCase.Description = description;
-            testCase.Data = data;
-            testCase.Valid = valid;
+            TestCase testCase = new TestCase
+            {
+                Description = description,
+                Data = data,
+                Valid = valid
+            };
             return testCase;
         }
     }

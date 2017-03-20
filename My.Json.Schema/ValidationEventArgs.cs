@@ -1,27 +1,23 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
 namespace My.Json.Schema
 {
     public class ValidationEventArgs : EventArgs
     {
 
-        private readonly ValidationError _Error;
-        private readonly string _Message;
+        private readonly ValidationError _error;
+        private readonly string _message;
 
         public ValidationEventArgs(ValidationError error)
         {
             if (error == null) throw new ArgumentNullException("error");
 
-            this._Error = error;
-            this._Message = error.Message;
+            this._error = error;
+            this._message = error.Message;
         }
 
-        public ValidationError Error { get { return _Error; } }
+        public ValidationError Error { get { return _error; } }
 
-        public string Message { get { return _Message; } }
+        public string Message { get { return _message; } }
 
     }
 }

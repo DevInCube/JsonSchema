@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
 
 namespace My.Json.Schema.Utilities
@@ -12,9 +10,9 @@ namespace My.Json.Schema.Utilities
 
         public static bool ContainsUnicodeCharacter(string input)
         {
-            const int MaxAnsiCode = 255;
+            const int maxAnsiCode = 255;
 
-            return input.Any(c => c > MaxAnsiCode);
+            return input.Any(c => c > maxAnsiCode);
         }
 
         public static string FormatWith(this string pattern, params object[] values)
@@ -24,7 +22,10 @@ namespace My.Json.Schema.Utilities
 
         internal static bool IsValidHostName(string value)
         {
-            return Regex.IsMatch(value, @"^(?=.{1,255}$)[0-9A-Za-z](?:(?:[0-9A-Za-z]|-){0,61}[0-9A-Za-z])?(?:\.[0-9A-Za-z](?:(?:[0-9A-Za-z]|-){0,61}[0-9A-Za-z])?)*\.?$", RegexOptions.CultureInvariant);
+            return Regex.IsMatch(
+                value,
+                @"^(?=.{1,255}$)[0-9A-Za-z](?:(?:[0-9A-Za-z]|-){0,61}[0-9A-Za-z])?(?:\.[0-9A-Za-z](?:(?:[0-9A-Za-z]|-){0,61}[0-9A-Za-z])?)*\.?$",
+                RegexOptions.CultureInvariant);
         }
 
         internal static bool IsValidIPv4(string value)
@@ -33,10 +34,10 @@ namespace My.Json.Schema.Utilities
             if (parts.Length != 4)
                 return false;
 
-            for (int i = 0; i < parts.Length; i++)
+            foreach (string part in parts)
             {
                 int num;
-                if (!int.TryParse(parts[i], NumberStyles.Integer, CultureInfo.InvariantCulture, out num)
+                if (!int.TryParse(part, NumberStyles.Integer, CultureInfo.InvariantCulture, out num)
                     || (num < 0 || num > 255))
                 {
                     return false;
@@ -47,7 +48,6 @@ namespace My.Json.Schema.Utilities
 
         internal static bool IsValidRegex(string value)
         {
-
             if (String.IsNullOrEmpty(value)) return false;
 
             try

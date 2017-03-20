@@ -1,11 +1,9 @@
 ﻿using My.Json.Schema.Utilities;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
 
 namespace My.Json.Schema
@@ -15,8 +13,8 @@ namespace My.Json.Schema
 
         public event ValidationErrorHandler ErrorHandled;
 
-        private JSchema schema;
-        private JToken data;
+        private JSchema _schema;
+        private JToken _data;
 
         public JSchemaValidationReader() { }
 
@@ -24,8 +22,8 @@ namespace My.Json.Schema
         {            
             if (schema == null) throw new ArgumentNullException("schema");
 
-            this.data = data;
-            this.schema = schema;
+            this._data = data;
+            this._schema = schema;
 
             if (data == null)
             {
@@ -52,23 +50,25 @@ namespace My.Json.Schema
 
         private void ValidateEnum()
         {
-            foreach (JToken enumItem in schema.Enum)
-                if (JToken.DeepEquals(enumItem, data))
-                    return;
+            if (_schema.Enum.Any(enumItem => JToken.DeepEquals(enumItem, _data)))
+            {
+                return;
+            }
             RaiseValidationError("Data does not matches enum");
         }
 
         private void ValidateNot()
         {
-            if (data.IsValid(schema.Not))
+            if (_data.IsValid(_schema.Not))
                 RaiseValidationError("Data should not be valid against the schema");
         }
 
         private void ValidateOneOf()
         {
             bool validOneOf = false;
-            foreach (JSchema oneOfSchema in schema.OneOf)
-                if (data.IsValid(oneOfSchema))
+            foreach (JSchema oneOfSchema in _schema.OneOf)
+            {
+                if (_data.IsValid(oneOfSchema))
                 {
                     if (!validOneOf) validOneOf = true;
                     else
@@ -77,94 +77,95 @@ namespace My.Json.Schema
                         return;
                     }
                 }
+            }
             if (!validOneOf)
+            {
                 RaiseValidationError("Data is not valid against any schema");
+            }
         }
 
         private void ValidateAnyOf()
         {
-            foreach (JSchema anyOfSchema in schema.AnyOf)
-                if (data.IsValid(anyOfSchema))
+            foreach (JSchema anyOfSchema in _schema.AnyOf)
+                if (_data.IsValid(anyOfSchema))
                     return;
             RaiseValidationError("Data is not valid against any schema");
         }
 
         private void ValidateAllOf()
         {
-            foreach (JSchema allOfSchema in schema.AllOf)
-                if (!data.IsValid(allOfSchema))
+            foreach (JSchema allOfSchema in _schema.AllOf)
+                if (!_data.IsValid(allOfSchema))
                     RaiseValidationError("Data is not valid against all of schemas");
         }
 
         private void ValidateType()
         {
-            if (data.Type == JTokenType.Null)
+            if (_data.Type == JTokenType.Null)
             {
-                if (!(schema.Type.HasFlag(JSchemaType.Null)
-                    || schema.Type == JSchemaType.None))
+                if (!(_schema.Type.HasFlag(JSchemaType.Null)
+                    || _schema.Type == JSchemaType.None))
                     RaiseValidationError("Unexpected null value");
             }
 
-            if (data.Type == JTokenType.Integer)
+            if (_data.Type == JTokenType.Integer)
             {
-                if (!(schema.Type.HasFlag(JSchemaType.Integer)
-                    || schema.Type.HasFlag(JSchemaType.Number)
-                    || schema.Type == JSchemaType.None))
+                if (!(_schema.Type.HasFlag(JSchemaType.Integer)
+                    || _schema.Type.HasFlag(JSchemaType.Number)
+                    || _schema.Type == JSchemaType.None))
                     RaiseValidationError("Unexpected integer value");
 
-                double integer = Convert.ToDouble(data);
+                double integer = Convert.ToDouble(_data);
 
                 ValidateInteger(integer);
             }
-            if (data.Type == JTokenType.Float)
+            if (_data.Type == JTokenType.Float)
             {
-                if (!(schema.Type.HasFlag(JSchemaType.Number)
-                     || schema.Type == JSchemaType.None))
+                if (!(_schema.Type.HasFlag(JSchemaType.Number)
+                     || _schema.Type == JSchemaType.None))
                     RaiseValidationError("Unexpected number value");
 
-                double doubleValue = data.Value<double>();
+                double doubleValue = _data.Value<double>();
 
                 ValidateNumber(doubleValue);
             }
 
-            if (data.Type == JTokenType.String
-                || data.Type == JTokenType.Date)
+            if (_data.Type == JTokenType.String
+                || _data.Type == JTokenType.Date)
             {
-                if (!(schema.Type.HasFlag(JSchemaType.String)
-                     || schema.Type == JSchemaType.None))
+                if (!(_schema.Type.HasFlag(JSchemaType.String)
+                     || _schema.Type == JSchemaType.None))
                     RaiseValidationError("Unexpected string value");
 
-                string value;
-                if (data.Type == JTokenType.Date)
-                    value = data.Value<DateTime>().ToJsonString();
-                else
-                    value = data.Value<string>();
+                var value = _data.Type == JTokenType.Date 
+                    ? _data.Value<DateTime>().ToJsonString() 
+                    : _data.Value<string>();
 
                 ValidateString(value);
             }
-            if (data.Type == JTokenType.Boolean)
+            if (_data.Type == JTokenType.Boolean)
             {
-                if (!(schema.Type.HasFlag(JSchemaType.Boolean)
-                     || schema.Type == JSchemaType.None))
+                if (!(_schema.Type.HasFlag(JSchemaType.Boolean)
+                     || _schema.Type == JSchemaType.None))
                     RaiseValidationError("Unexpected boolean value");                
             }
-            if (data.Type == JTokenType.Array)
+            if (_data.Type == JTokenType.Array)
             {
-                if (!(schema.Type.HasFlag(JSchemaType.Array)
-                    || schema.Type == JSchemaType.None))
+                if (!(_schema.Type.HasFlag(JSchemaType.Array)
+                    || _schema.Type == JSchemaType.None))
                     RaiseValidationError("Unexpected array");
 
-                JArray array = data as JArray;
+                JArray array = _data as JArray;
 
                 ValidateArray(array);
             }
-            if (data.Type == JTokenType.Object)
+            if (_data.Type == JTokenType.Object)
             {
-                if (!(schema.Type.HasFlag(JSchemaType.Object)
-                   || schema.Type == JSchemaType.None))
+                if (!(_schema.Type.HasFlag(JSchemaType.Object)
+                   || _schema.Type == JSchemaType.None))
                     RaiseValidationError("Unexpected object value");
 
-                JObject obj = data as JObject;
+                JObject obj = _data as JObject;
 
                 ValidateObject(obj);
             }            
@@ -174,27 +175,21 @@ namespace My.Json.Schema
         {
             int strLen = new StringInfo(value).LengthInTextElements;
 
-            if (schema.MinLength != null)
-            {
-                if (strLen < schema.MinLength) 
-                    RaiseValidationError("String length is less than minimum");
-            }
-            if (schema.MaxLength != null)
-            {
-                if (strLen > schema.MaxLength) 
-                    RaiseValidationError("String length is greater than maximum");
-            }
+            if (strLen < _schema.MinLength) 
+                RaiseValidationError("String length is less than minimum");
+            if (strLen > _schema.MaxLength) 
+                RaiseValidationError("String length is greater than maximum");
 
-            if (schema.Pattern != null)
+            if (_schema.Pattern != null)
             {
-                Regex regex = new Regex(schema.Pattern);
+                Regex regex = new Regex(_schema.Pattern);
                 if (!regex.IsMatch(value)) 
                     RaiseValidationError("String does not matches pattern");
             }
 
-            if (schema.Format != null)
+            if (_schema.Format != null)
             {
-                ValidateStringFormat(value, schema.Format);
+                ValidateStringFormat(value, _schema.Format);
             }
         }
 
@@ -228,7 +223,7 @@ namespace My.Json.Schema
                     }
                 case ("ipv6"):
                     {
-                        if (!(Uri.CheckHostName(value) == UriHostNameType.IPv6))
+                        if (Uri.CheckHostName(value) != UriHostNameType.IPv6)
                             RaiseValidationError("String is not in correct ipv6 format.");
                         break;
                     }
@@ -243,27 +238,27 @@ namespace My.Json.Schema
 
         private void ValidateNumber(double doubleValue)
         {
-            if (schema.Minimum != null)
+            if (_schema.Minimum != null)
             {
-                if (doubleValue < schema.Minimum)
+                if (doubleValue < _schema.Minimum)
                     RaiseValidationError("Value is less than minimum");
-                if (schema.ExclusiveMinimum)
-                    if (doubleValue == schema.Minimum)
+                if (_schema.ExclusiveMinimum)
+                    if (doubleValue == _schema.Minimum)
                         RaiseValidationError("Value should not be equal to minimum");
             }
-            if (schema.Maximum != null)
+            if (_schema.Maximum != null)
             {
-                if (doubleValue > schema.Maximum) RaiseValidationError("Value is greater than maximum");
-                if (schema.ExclusiveMaximum)
-                    if (doubleValue == schema.Maximum)
+                if (doubleValue > _schema.Maximum) RaiseValidationError("Value is greater than maximum");
+                if (_schema.ExclusiveMaximum)
+                    if (doubleValue == _schema.Maximum)
                         RaiseValidationError("Value should not be equal to maximum");
             }
-            if (schema.MultipleOf != null)
+            if (_schema.MultipleOf != null)
             {
-                if (doubleValue != 0)
+                if (Math.Abs(doubleValue) > 1e-7)
                 {
                     decimal value = (decimal)doubleValue;
-                    decimal multiple = (decimal)schema.MultipleOf;
+                    decimal multiple = (decimal)_schema.MultipleOf;
                     if (value % multiple != 0)
                         RaiseValidationError("Value is not a multiple of");
                 }
@@ -272,47 +267,45 @@ namespace My.Json.Schema
 
         private void ValidateArray(JArray array)
         {            
-            if (schema.UniqueItems)
+            if (_schema.UniqueItems)
             {
                 ValidateUniqueItems(array);
             }
 
-            if (schema.MinItems != null)
+            if (_schema.MinItems != null)
             {
-                if (array.Count < schema.MinItems)
+                if (array.Count < _schema.MinItems)
                     RaiseValidationError("Array length is less than minimum");
             }
 
-            if (schema.MaxItems != null)
+            if (_schema.MaxItems != null)
             {
-                if (array.Count > schema.MaxItems)
+                if (array.Count > _schema.MaxItems)
                     RaiseValidationError("Array length is greater than maximum");
             }
 
-            if (schema.ItemsSchema != null)
+            if (_schema.ItemsSchema != null)
             {
                 foreach (JToken item in array)
                 {
                     IList<ValidationError> childErrors;
-                    if (!item.IsValid(schema.ItemsSchema, out childErrors))
+                    if (!item.IsValid(_schema.ItemsSchema, out childErrors))
                         RaiseValidationError("Array items are not valid against items schema", childErrors);
                 }
             }
 
-            if (schema.ItemsArray.Count > 0)
+            if (_schema.ItemsArray.Count > 0)
             {
-                if ((array.Count > schema.ItemsArray.Count)
-                    && !schema.AllowAdditionalItems)
+                if ((array.Count > _schema.ItemsArray.Count)
+                    && !_schema.AllowAdditionalItems)
                     RaiseValidationError("Array length is greater than schema array length as additional items are not allowed");
 
                 for (int i = 0; i < array.Count; i++)
                 {
                     JToken item = array[i];
-                    JSchema itemSchema;
-                    if (i < schema.ItemsArray.Count)
-                        itemSchema = schema.ItemsArray[i];
-                    else
-                        itemSchema = schema.AdditionalItems;
+                    var itemSchema = i < _schema.ItemsArray.Count 
+                        ? _schema.ItemsArray[i] 
+                        : _schema.AdditionalItems;
 
                     IList<ValidationError> childErrors;
                     if (!item.IsValid(itemSchema, out childErrors))
@@ -327,39 +320,45 @@ namespace My.Json.Schema
             foreach (JToken item in array.Children())
             {
                 foreach (JToken unique in uniques)
+                {
                     if (JToken.DeepEquals(item, unique))
                     {
                         RaiseValidationError("Array items are not unique");
                         return;
                     }
+                }
                 uniques.Add(item);
             }            
         }
 
         private void ValidateObject(JObject obj)
         {
-            foreach (string requiredName in schema.Required)
+            foreach (string requiredName in _schema.Required)
             {
                 bool exists = false;
                 foreach (JProperty prop in obj.Properties())
+                {
                     if (prop.Name.Equals(requiredName))
                     {
                         exists = true;
                         break;
                     }
+                }
                 if (!exists)
+                {
                     RaiseValidationError("Required property is missing");
+                }
             }
 
-            if (schema.MinProperties != null)
+            if (_schema.MinProperties != null)
             {
-                if (obj.Properties().Count() < schema.MinProperties)
+                if (obj.Properties().Count() < _schema.MinProperties)
                     RaiseValidationError("Properties count is less than minimum");
             }
 
-            if (schema.MaxProperties != null)
+            if (_schema.MaxProperties != null)
             {
-                if (obj.Properties().Count() > schema.MaxProperties)
+                if (obj.Properties().Count() > _schema.MaxProperties)
                     RaiseValidationError("Properties count is greater than maximum");
             }
 
@@ -367,9 +366,9 @@ namespace My.Json.Schema
             {
                 IList<JSchema> s = new List<JSchema>();
                 string m = prop.Name;
-                if (schema.Properties.ContainsKey(m))
-                    s.Add(schema.Properties[m]);
-                foreach (var patternPair in schema.PatternProperties)
+                if (_schema.Properties.ContainsKey(m))
+                    s.Add(_schema.Properties[m]);
+                foreach (var patternPair in _schema.PatternProperties)
                 {
                     Regex nameRegex = new Regex(patternPair.Key);
                     if (nameRegex.IsMatch(m))
@@ -377,9 +376,9 @@ namespace My.Json.Schema
                 }
                 if (s.Count == 0)
                 {
-                    if (!schema.AllowAdditionalProperties)
+                    if (!_schema.AllowAdditionalProperties)
                         RaiseValidationError("Additional properties are not allowed");
-                    s.Add(schema.AdditionalProperties);
+                    s.Add(_schema.AdditionalProperties);
                 }
                 foreach (JSchema propSchema in s)
                 {
@@ -389,9 +388,9 @@ namespace My.Json.Schema
                 }
             }
 
-            if (schema.SchemaDependencies.Count > 0)
+            if (_schema.SchemaDependencies.Count > 0)
             {
-                foreach (var pair in schema.SchemaDependencies)
+                foreach (var pair in _schema.SchemaDependencies)
                 {
                     JToken t;
                     if (obj.TryGetValue(pair.Key, out t))
@@ -402,17 +401,19 @@ namespace My.Json.Schema
                 }
             }
 
-            if (schema.PropertyDependencies.Count > 0)
+            if (_schema.PropertyDependencies.Count > 0)
             {
-                foreach (var pair in schema.PropertyDependencies)
+                foreach (var pair in _schema.PropertyDependencies)
                 {
                     JToken t;
                     if (obj.TryGetValue(pair.Key, out t))
                     {
                         IList<string> propertyset = pair.Value;
                         foreach (string propertyName in propertyset)
+                        {
                             if (!obj.TryGetValue(propertyName, out t))
                                 RaiseValidationError("Property dependency is not valid");
+                        }
                     }
                 }
             }
@@ -420,25 +421,25 @@ namespace My.Json.Schema
 
         private void ValidateInteger(double integer)
         {
-            if (schema.Minimum != null)
+            if (_schema.Minimum != null)
             {
-                if (integer < schema.Minimum) RaiseValidationError("Value is less than minimum");
-                if (schema.ExclusiveMinimum)
-                    if (integer == schema.Minimum)
+                if (integer < _schema.Minimum) RaiseValidationError("Value is less than minimum");
+                if (_schema.ExclusiveMinimum)
+                    if (integer == _schema.Minimum)
                         RaiseValidationError("Value should not be equal to minimum");
             }
-            if (schema.Maximum != null)
+            if (_schema.Maximum != null)
             {
-                if (integer > schema.Maximum) RaiseValidationError("Value is greater than maximum");
-                if (schema.ExclusiveMaximum)
-                    if (integer == schema.Maximum)
+                if (integer > _schema.Maximum) RaiseValidationError("Value is greater than maximum");
+                if (_schema.ExclusiveMaximum)
+                    if (integer == _schema.Maximum)
                         RaiseValidationError("Value should not be equal to maximum");
             }
-            if (schema.MultipleOf != null)
+            if (_schema.MultipleOf != null)
             {
-                if (integer != 0)
+                if (Math.Abs(integer) > 1e-7)
                 {
-                    if (integer % schema.MultipleOf != 0)
+                    if (integer % _schema.MultipleOf != 0)
                         RaiseValidationError("Value is not a multiple of");
                 }
             }
@@ -450,11 +451,11 @@ namespace My.Json.Schema
 
             ValidationErrorHandler handler = ErrorHandled;
             if (handler != null)
-            {                
-                ValidationError error = new ValidationError(message, data);
-                error.ChildErrors = childErrors;
+            {
+                ValidationError error = new ValidationError(message, _data) {ChildErrors = childErrors};
                 ValidationEventArgs args = new ValidationEventArgs(error);
-                ErrorHandled(this, args);
+                if (ErrorHandled != null) 
+                    ErrorHandled(this, args);
             }
             else
             {
