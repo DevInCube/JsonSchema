@@ -10,9 +10,14 @@ namespace My.Json.Schema
 
         public JSchemaException() { }
 
-        public JSchemaException(string p) : base(p) { }
+        public JSchemaException(string message) : base(message) { }
 
-        public static string FormatMessage(string message, string path, IJsonLineInfo lineInfo)
+        public JSchemaException(string message, string path, IJsonLineInfo lineInfo)
+            :this(FormatMessage(message, path, lineInfo))
+        {
+        }
+
+        private static string FormatMessage(string message, string path, IJsonLineInfo lineInfo)
         {
             StringBuilder bld = new StringBuilder();
 

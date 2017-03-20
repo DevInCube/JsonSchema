@@ -15,10 +15,9 @@ namespace My.Json.Schema
             if (x != y)
                 return false;
 
-            if (!x.IsAbsoluteUri)
-                return String.Equals(x.OriginalString, y.OriginalString, StringComparison.Ordinal); ;
-
-            return String.Equals(x.Fragment, y.Fragment, StringComparison.Ordinal);
+            return !x.IsAbsoluteUri 
+                ? String.Equals(x.OriginalString, y.OriginalString, StringComparison.Ordinal) 
+                : String.Equals(x.Fragment, y.Fragment, StringComparison.Ordinal);
         }
 
         public int GetHashCode(Uri obj)

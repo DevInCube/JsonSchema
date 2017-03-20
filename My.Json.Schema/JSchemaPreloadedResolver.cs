@@ -33,10 +33,9 @@ namespace My.Json.Schema
             if (_preloadedData.TryGetValue(uri, out data))
                 return new MemoryStream(data);
 
-            if (_resolver != null)
-                return _resolver.GetSchemaResource(uri);
-
-            return null;
+            return _resolver != null 
+                ? _resolver.GetSchemaResource(uri) 
+                : null;
         }
       
         public void Add(Uri uri, byte[] value)

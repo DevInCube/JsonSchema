@@ -27,7 +27,7 @@ namespace My.Json.Schema.TestConsole
             Console.ReadKey(true);         
         }
 
-        private static void RunTests(List<TestPackage> draft4Tests, JSchemaResolver resolver)
+        private static void RunTests(IEnumerable<TestPackage> draft4Tests, JSchemaResolver resolver)
         {
             int successCount = 0;
             int failedCount = 0;
@@ -44,7 +44,6 @@ namespace My.Json.Schema.TestConsole
                     {
 
                     }
-                    int caseSuccessCount = 0;
                     int caseFailedCount = 0;
                     int caseExceptionCount = 0;
                     StringBuilder builder = new StringBuilder();
@@ -70,18 +69,14 @@ namespace My.Json.Schema.TestConsole
                         }
 
                         bool result = testCase.Data.IsValid(schema);
+                        bool success = result == testCase.Valid;
 
-                        bool success = (result == testCase.Valid);
-                        if (!success)
-                        {
-                            builder.Append("\tCase: " + testCase.Description + " ");
-                            builder.AppendLine("\t\tStatus: " + (success ? "ok" : "FAILED"));
-                        }
+                        builder.Append("\tCase: " + testCase.Description + " ");
+                        builder.AppendLine("\t\tStatus: " + (success ? "ok" : "FAILED"));
                         if (success)
                         {
                             successCount++;
                             testSuccessCount++;
-                            caseSuccessCount++;
                         }
                         else
                         {
@@ -93,7 +88,8 @@ namespace My.Json.Schema.TestConsole
                     if (caseFailedCount > 0 || caseExceptionCount > 0)
                         Console.WriteLine(builder.ToString());
                 }
-                Console.WriteLine("[{0}/{1}]---------------------------", testSuccessCount, (testSuccessCount + testFailedCount + testExceptionCount));
+                int totalCount = testSuccessCount + testFailedCount + testExceptionCount;
+                Console.WriteLine("[{0}/{1}]---------------------------", testSuccessCount, totalCount);
             }
             Console.WriteLine("===========================");
             Console.WriteLine("SUCCESS: \t" + successCount);
@@ -114,16 +110,13 @@ namespace My.Json.Schema.TestConsole
                 foreach (JToken item in testArray)
                 {
                     if (item.Type != JTokenType.Object) throw new Exception("invalid test");
-                    JObject testObject = item as JObject;
-                    TestContext test = TestContext.Create(testObject);
-                    tests.Add(test);
+                    tests.Add(TestContext.Create((JObject)item));
                 }
-                TestPackage pack = new TestPackage
+                allTests.Add(new TestPackage
                 {
                     Name = testFile.Name,
                     Tests = tests
-                };
-                allTests.Add(pack);
+                });
             }
             return allTests;
         }

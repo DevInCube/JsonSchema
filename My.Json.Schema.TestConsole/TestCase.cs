@@ -14,17 +14,12 @@ namespace My.Json.Schema.TestConsole
         {
             if (obj == null) throw new ArgumentNullException("obj");
 
-            string description = obj.GetValue("description").Value<string>();
-            JToken data = obj.GetValue("data");
-            bool valid = obj.GetValue("valid").Value<bool>();
-
-            TestCase testCase = new TestCase
+            return new TestCase
             {
-                Description = description,
-                Data = data,
-                Valid = valid
+                Description = obj.GetValue("description").Value<string>(),
+                Data = obj.GetValue("data"),
+                Valid = obj.GetValue("valid").Value<bool>()
             };
-            return testCase;
         }
     }
 }

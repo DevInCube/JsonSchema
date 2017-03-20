@@ -362,29 +362,29 @@ namespace My.Json.Schema
                     RaiseValidationError("Properties count is greater than maximum");
             }
 
-            foreach (JProperty prop in obj.Properties())
+            foreach (JProperty property in obj.Properties())
             {
-                IList<JSchema> s = new List<JSchema>();
-                string m = prop.Name;
-                if (_schema.Properties.ContainsKey(m))
-                    s.Add(_schema.Properties[m]);
+                IList<JSchema> schemas = new List<JSchema>();
+                string propName = property.Name;
+                if (_schema.Properties.ContainsKey(propName))
+                    schemas.Add(_schema.Properties[propName]);
                 foreach (var patternPair in _schema.PatternProperties)
                 {
                     Regex nameRegex = new Regex(patternPair.Key);
-                    if (nameRegex.IsMatch(m))
-                        s.Add(patternPair.Value);
+                    if (nameRegex.IsMatch(propName))
+                        schemas.Add(patternPair.Value);
                 }
-                if (s.Count == 0)
+                if (schemas.Count == 0)
                 {
                     if (!_schema.AllowAdditionalProperties)
                         RaiseValidationError("Additional properties are not allowed");
-                    s.Add(_schema.AdditionalProperties);
+                    schemas.Add(_schema.AdditionalProperties);
                 }
-                foreach (JSchema propSchema in s)
+                foreach (JSchema propSchema in schemas)
                 {
                     IList<ValidationError> childErrors;
-                    if (!prop.Value.IsValid(propSchema, out childErrors))
-                        RaiseValidationError("Property '{0}' is not valid against schema".FormatWith(prop.Name), childErrors);
+                    if (!property.Value.IsValid(propSchema, out childErrors))
+                        RaiseValidationError("Property '{0}' is not valid against schema".FormatWith(property.Name), childErrors);
                 }
             }
 
@@ -405,13 +405,13 @@ namespace My.Json.Schema
             {
                 foreach (var pair in _schema.PropertyDependencies)
                 {
-                    JToken t;
-                    if (obj.TryGetValue(pair.Key, out t))
+                    JToken token;
+                    if (obj.TryGetValue(pair.Key, out token))
                     {
                         IList<string> propertyset = pair.Value;
                         foreach (string propertyName in propertyset)
                         {
-                            if (!obj.TryGetValue(propertyName, out t))
+                            if (!obj.TryGetValue(propertyName, out token))
                                 RaiseValidationError("Property dependency is not valid");
                         }
                     }
