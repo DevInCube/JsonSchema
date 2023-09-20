@@ -1,17 +1,26 @@
 ﻿using System;
-using System.Net;
+using System.Globalization;
+using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace My.Json.Schema.Utilities
 {
-    internal static class StringHelpers
+    public static class StringHelpers
     {
+
+        public static bool ContainsUnicodeCharacter(string input)
+        {
+            const int maxAnsiCode = 255;
+
+            return input.Any(c => c > maxAnsiCode);
+        }
+
         public static string FormatWith(this string pattern, params object[] values)
         {
             return String.Format(pattern, values);
         }
 
-        public static bool IsValidHostName(string value)
+        internal static bool IsValidHostName(string value)
         {
             return Regex.IsMatch(
                 value,
@@ -19,20 +28,31 @@ namespace My.Json.Schema.Utilities
                 RegexOptions.CultureInvariant);
         }
 
-        public static bool IsValidIPv4(string value)
+        internal static bool IsValidIPv4(string value)
         {
-            return
-                IPAddress.TryParse(value, out IPAddress ipAddress) &&
-                ipAddress.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork;
+            string[] parts = value.Split('.');
+            if (parts.Length != 4)
+                return false;
+
+            foreach (string part in parts)
+            {
+                int num;
+                if (!int.TryParse(part, NumberStyles.Integer, CultureInfo.InvariantCulture, out num)
+                    || (num < 0 || num > 255))
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
-        public static bool IsValidRegex(string value)
+        internal static bool IsValidRegex(string value)
         {
             if (String.IsNullOrEmpty(value)) return false;
 
             try
             {
-                _ = new Regex(value);
+                new Regex(value);
                 return true;
             }
             catch
