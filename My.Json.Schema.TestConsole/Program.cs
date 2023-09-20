@@ -63,7 +63,20 @@ namespace My.Json.Schema.TestConsole
                             continue;
                         }
 
-                        bool result = testCase.Data.IsValid(schema);
+                        bool result = false;
+                        try
+                        {
+                            result = testCase.Data.IsValid(schema);
+                        }
+                        catch (Exception e)
+                        {
+                            exceptionCount++;
+                            testExceptionCount++;
+                            caseExceptionCount++;
+                            builder.AppendLine($"\t\tException: {e.Message}");
+                            continue;
+                        }
+
                         bool success = result == testCase.Valid;
 
                         builder.Append($"\tCase {index + 1}: {testCase.Description} ");

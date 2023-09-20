@@ -14,16 +14,32 @@ namespace My.Json.Schema
 
         public event ValidationErrorHandler ErrorHandled;
 
+        private readonly JSchemaValidationReader _parentReader;
         private JSchema _schema;
         private JToken _data;
 
-        public JSchemaValidationReader() { }
+        public JSchemaValidationReader(JSchemaValidationReader parentReader) 
+        {
+            _parentReader = parentReader;
+        }
 
         public void Validate(JToken data, JSchema schema)
         {
             if (schema == null)
             {
                 throw new ArgumentNullException(nameof(schema));
+            }
+
+            JSchemaValidationReader reader = _parentReader;
+            while (reader != null)
+            {
+                if (reader._data == data && 
+                    reader._schema == schema)
+                {
+                    return;
+                }
+
+                reader = reader._parentReader;
             }
 
             if (data == null)
@@ -69,7 +85,7 @@ namespace My.Json.Schema
 
         private void ValidateNot()
         {
-            if (_data.IsValid(_schema.Not))
+            if (_data.IsValid(_schema.Not, this))
                 RaiseValidationError("Data should not be valid against the schema");
         }
 
@@ -78,7 +94,7 @@ namespace My.Json.Schema
             bool validOneOf = false;
             foreach (JSchema oneOfSchema in _schema.OneOf)
             {
-                if (_data.IsValid(oneOfSchema))
+                if (_data.IsValid(oneOfSchema, this))
                 {
                     if (!validOneOf) validOneOf = true;
                     else
@@ -97,7 +113,7 @@ namespace My.Json.Schema
         private void ValidateAnyOf()
         {
             foreach (JSchema anyOfSchema in _schema.AnyOf)
-                if (_data.IsValid(anyOfSchema))
+                if (_data.IsValid(anyOfSchema, this))
                     return;
             RaiseValidationError("Data is not valid against any schema");
         }
@@ -105,7 +121,7 @@ namespace My.Json.Schema
         private void ValidateAllOf()
         {
             foreach (JSchema allOfSchema in _schema.AllOf)
-                if (!_data.IsValid(allOfSchema))
+                if (!_data.IsValid(allOfSchema, this))
                     RaiseValidationError("Data is not valid against all of schemas");
         }
 
@@ -306,7 +322,7 @@ namespace My.Json.Schema
                 foreach (JToken item in array)
                 {
                     IList<ValidationError> childErrors;
-                    if (!item.IsValid(_schema.ItemsSchema, out childErrors))
+                    if (!item.IsValid(_schema.ItemsSchema, out childErrors, this))
                         RaiseValidationError("Array items are not valid against items schema", childErrors);
                 }
             }
@@ -325,7 +341,7 @@ namespace My.Json.Schema
                         : _schema.AdditionalItems;
 
                     IList<ValidationError> childErrors;
-                    if (!item.IsValid(itemSchema, out childErrors))
+                    if (!item.IsValid(itemSchema, out childErrors, this))
                         RaiseValidationError("Array item is not valid against schema", childErrors);
                 }
             }
@@ -385,22 +401,26 @@ namespace My.Json.Schema
                 string propName = property.Name;
                 if (_schema.Properties.ContainsKey(propName))
                     schemas.Add(_schema.Properties[propName]);
+
                 foreach (var patternPair in _schema.PatternProperties)
                 {
                     Regex nameRegex = new Regex(patternPair.Key);
                     if (nameRegex.IsMatch(propName))
                         schemas.Add(patternPair.Value);
                 }
+
                 if (schemas.Count == 0)
                 {
                     if (!_schema.AllowAdditionalProperties)
                         RaiseValidationError("Additional properties are not allowed");
+
                     schemas.Add(_schema.AdditionalProperties);
                 }
+
                 foreach (JSchema propSchema in schemas)
                 {
                     IList<ValidationError> childErrors;
-                    if (!property.Value.IsValid(propSchema, out childErrors))
+                    if (!property.Value.IsValid(propSchema, out childErrors, this))
                         RaiseValidationError("Property '{0}' is not valid against schema".FormatWith(property.Name), childErrors);
                 }
             }
@@ -412,7 +432,7 @@ namespace My.Json.Schema
                     JToken t;
                     if (obj.TryGetValue(pair.Key, out t))
                     {
-                        if (!obj.IsValid(pair.Value))
+                        if (!obj.IsValid(pair.Value, this))
                             RaiseValidationError("Schema dependency is not valid");
                     }
                 }
