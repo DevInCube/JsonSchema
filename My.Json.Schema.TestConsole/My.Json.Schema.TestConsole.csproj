@@ -1,6 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <ProjectGuid>{CE261A33-AE3E-49FF-A294-679E8782D6E0}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <TargetFramework>net48</TargetFramework>
     <AssemblyTitle>My.Json.Schema.TestConsole</AssemblyTitle>

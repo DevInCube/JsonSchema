@@ -1,6 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <ProjectGuid>{F8792C62-C58F-4FC8-A142-98D74DBDC24F}</ProjectGuid>
     <TargetFramework>net48</TargetFramework>
     <AssemblyTitle>My.Json.Schema</AssemblyTitle>
     <Product>My.Json.Schema</Product>
