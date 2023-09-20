@@ -142,9 +142,14 @@ namespace My.Json.Schema
                 }
 
                 var property = jObject.Parent as JProperty;
-                JObject parent = (JObject) (property != null
-                    ? property.Parent
-                    : jObject.Parent);
+                var parentContainer = property?.Parent ?? jObject.Parent;
+                if (parentContainer.Type == JTokenType.Array)
+                {
+                    // e.g. "allOf"
+                    parentContainer = parentContainer.Parent.Parent;
+                }
+
+                JObject parent = (JObject)parentContainer;
 
                 string parentId = "";
                 if (parent.TryGetValue("id", out t2))
@@ -156,7 +161,9 @@ namespace My.Json.Schema
 
         private JSchema ResolveInternalReference(string path, JObject rootObject)
         {
-            string[] props = path.Split(new [] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+            string[] props = !string.IsNullOrEmpty(path) 
+                ? path.TrimStart('/').Split(new [] { '/' })
+                : new string[0];
 
             JToken token = rootObject;
 
@@ -167,10 +174,14 @@ namespace My.Json.Schema
                 if (token is JObject)
                 {
                     JObject obj = token as JObject;
-                    string unescapedPropName = propName.Replace("~1", "/").Replace("~0", "~").Replace("%25", "%");
+                    string unescapedPropName = propName
+                        .Replace("~1", "/")
+                        .Replace("~0", "~")
+                        .Replace("%25", "%")
+                        .Replace("%22", "\"");
                     if (!obj.TryGetValue(unescapedPropName, out propVal))
                     {
-                        throw new JSchemaException("no property named " + propName, obj.Path, obj);
+                        throw new JSchemaException($"Missing property '{propName}'.", obj.Path, obj);
                     }
                 }
                 else if (token is JArray)
