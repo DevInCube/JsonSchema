@@ -20,28 +20,37 @@ namespace My.Json.Schema
         public JSchemaValidationReader() { }
 
         public void Validate(JToken data, JSchema schema)
-        {            
-            if (schema == null) throw new ArgumentNullException(nameof(schema));
-
-            this._data = data;
-            this._schema = schema;
+        {
+            if (schema == null)
+            {
+                throw new ArgumentNullException(nameof(schema));
+            }
 
             if (data == null)
             {
-                if(!schema.Type.HasFlag(JSchemaType.Null))
+                if (!schema.Type.HasFlag(JSchemaType.Null))
                     RaiseValidationError("Unexpected null");
+
                 return;
             }
 
+            _data = data;
+            _schema = schema;
+
             if (schema.Enum.Count > 0)
                 ValidateEnum();
+
             ValidateType();
+            
             if (schema.AllOf.Count > 0)
                 ValidateAllOf();
+            
             if (schema.AnyOf.Count > 0)
                 ValidateAnyOf();
+            
             if (schema.OneOf.Count > 0)
                 ValidateOneOf();
+            
             if (schema.Not != null)
                 ValidateNot();
             
@@ -51,7 +60,7 @@ namespace My.Json.Schema
 
         private void ValidateEnum()
         {
-            if (_schema.Enum.Any(enumItem => JToken.DeepEquals(enumItem, _data)))
+            if (_schema.Enum.Any(enumItem => enumItem.IsEqualTo(_data)))
             {
                 return;
             }
@@ -329,7 +338,7 @@ namespace My.Json.Schema
             {
                 foreach (JToken unique in uniques)
                 {
-                    if (JToken.DeepEquals(item, unique))
+                    if (item.IsEqualTo(unique))
                     {
                         RaiseValidationError("Array items are not unique");
                         return;
