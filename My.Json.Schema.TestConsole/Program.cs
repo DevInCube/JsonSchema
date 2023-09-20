@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace My.Json.Schema.TestConsole
@@ -11,49 +12,43 @@ namespace My.Json.Schema.TestConsole
         private static void Main(string[] args)
         {
             string remoteHost = "http://localhost:1234";
-            string remoteDirectory = "Resources/remotes";
+            string testSuiteDirectory = "Resources";
+            string remoteDirectory = Path.Combine(testSuiteDirectory, @"remotes");
             JSchemaResolver resolver = new JSchemaTestRemoteResolver(remoteHost, remoteDirectory);
 
-            string testsDraft4Dir = "Resources/tests/draft4";
-            var draft4Tests = LoadTests(testsDraft4Dir);
+            string draftVersion = "draft4";
+            string testsDraftDir = Path.Combine(testSuiteDirectory, "tests", draftVersion);
+            var draftTests = LoadTests(testsDraftDir);
 
-            string testsOptionalDraft4Dir = "Resources/tests/draft4/optional";
-            var draft4OptionalTests = LoadTests(testsOptionalDraft4Dir);
+            string testsOptionalDraftDir = Path.Combine(testsDraftDir, "optional");
+            var draftOptionalTests = LoadTests(testsOptionalDraftDir);
 
             Console.WriteLine("MAIN TESTS ====================");
-            RunTests(draft4Tests, resolver);
+            RunTests(draftTests, resolver);
             Console.WriteLine(Environment.NewLine + "OPTIONAL TESTS ====================");
-            RunTests(draft4OptionalTests, resolver);
+            RunTests(draftOptionalTests, resolver);
             Console.ReadKey(true);         
         }
 
-        private static void RunTests(IEnumerable<TestPackage> draft4Tests, JSchemaResolver resolver)
+        private static void RunTests(IEnumerable<TestPackage> draftTests, JSchemaResolver resolver)
         {
             int successCount = 0;
             int failedCount = 0;
             int exceptionCount = 0;
-            foreach (TestPackage testPack in draft4Tests)
+            foreach (TestPackage testPack in draftTests)
             {
-                Console.WriteLine(testPack.Name + ":" + Environment.NewLine);
+                Console.WriteLine($"{testPack.Name}:{Environment.NewLine}");
                 int testSuccessCount = 0;
                 int testFailedCount = 0;
                 int testExceptionCount = 0;
                 foreach (TestContext test in testPack.Tests)
                 {
-                    if (test.Description.Equals("change resolution scope"))
-                    {
-
-                    }
                     int caseFailedCount = 0;
                     int caseExceptionCount = 0;
                     StringBuilder builder = new StringBuilder();
-                    builder.AppendLine("Test: " + test.Description);
-                    foreach (TestCase testCase in test.Cases)
+                    builder.AppendLine($"Test: {test.Description}, {test.Cases.Count} test cases");
+                    foreach ((TestCase testCase, int index) in test.Cases.Select((x, i) => (x, i)))
                     {
-                        if (testCase.Description.Equals("a valid date-time string"))
-                        {
-
-                        }
                         JSchema schema;
                         try
                         {
@@ -64,15 +59,16 @@ namespace My.Json.Schema.TestConsole
                             exceptionCount++;
                             testExceptionCount++;
                             caseExceptionCount++;
-                            builder.AppendLine("\t\tException: " + e.Message);
+                            builder.AppendLine($"\t\tException: {e.Message}");
                             continue;
                         }
 
                         bool result = testCase.Data.IsValid(schema);
                         bool success = result == testCase.Valid;
 
-                        builder.Append("\tCase: " + testCase.Description + " ");
-                        builder.AppendLine("\t\tStatus: " + (success ? "ok" : "FAILED"));
+                        builder.Append($"\tCase {index + 1}: {testCase.Description} ");
+                        var statusString = success ? "ok" : "FAILED";
+                        builder.AppendLine($"\t\tStatus: {statusString}");
                         if (success)
                         {
                             successCount++;
@@ -86,18 +82,22 @@ namespace My.Json.Schema.TestConsole
                         }
                     }
                     if (caseFailedCount > 0 || caseExceptionCount > 0)
+                    {
                         Console.WriteLine(builder.ToString());
+                    }
                 }
+
                 int totalCount = testSuccessCount + testFailedCount + testExceptionCount;
-                Console.WriteLine("[{0}/{1}]---------------------------", testSuccessCount, totalCount);
+                Console.WriteLine($"[{testSuccessCount}/{totalCount}]---------------------------");
             }
+
             Console.WriteLine("===========================");
-            Console.WriteLine("SUCCESS: \t" + successCount);
-            Console.WriteLine("FAILED: \t" + failedCount);
-            Console.WriteLine("EXCEPTIONS: \t" + exceptionCount);
+            Console.WriteLine($"SUCCESS: \t{successCount}");
+            Console.WriteLine($"FAILED: \t{failedCount}");
+            Console.WriteLine($"EXCEPTIONS: \t{exceptionCount}");
         }
 
-        private static List<TestPackage> LoadTests(string testsDirPath)
+        private static IEnumerable<TestPackage> LoadTests(string testsDirPath)
         {
             DirectoryInfo testsDir = new DirectoryInfo(testsDirPath);
             FileInfo[] testFiles = testsDir.GetFiles();
@@ -109,15 +109,21 @@ namespace My.Json.Schema.TestConsole
                 JArray testArray = JArray.Parse(content);
                 foreach (JToken item in testArray)
                 {
-                    if (item.Type != JTokenType.Object) throw new Exception("invalid test");
+                    if (item.Type != JTokenType.Object)
+                    {
+                        throw new Exception("invalid test");
+                    }
+
                     tests.Add(TestContext.Create((JObject)item));
                 }
+
                 allTests.Add(new TestPackage
                 {
                     Name = testFile.Name,
                     Tests = tests
                 });
             }
+
             return allTests;
         }
     }
