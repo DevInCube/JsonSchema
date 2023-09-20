@@ -241,7 +241,7 @@ namespace My.Json.Schema
 
         public static JSchema Parse(string json, JSchemaResolver resolver = null)
         {
-            if (json == null) throw new ArgumentNullException("json");
+            if (json == null) throw new ArgumentNullException(nameof(json));
             if (String.IsNullOrWhiteSpace(json))
                 throw new JSchemaException("invalid json");
 

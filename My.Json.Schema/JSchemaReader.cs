@@ -23,7 +23,7 @@ namespace My.Json.Schema
 
         public JSchema ReadSchema(JObject jObject, JSchemaResolver inResolver = null)
         {
-            if (jObject == null) throw new ArgumentNullException("jObject");
+            if (jObject == null) throw new ArgumentNullException(nameof(jObject));
 
             if (inResolver != null)
                 this._resolver = inResolver;

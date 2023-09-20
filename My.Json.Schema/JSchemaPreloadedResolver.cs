@@ -41,10 +41,10 @@ namespace My.Json.Schema
         public void Add(Uri uri, byte[] value)
         {
             if (uri == null)
-                throw new ArgumentNullException("uri");
+                throw new ArgumentNullException(nameof(uri));
 
             if (value == null)
-                throw new ArgumentNullException("value");
+                throw new ArgumentNullException(nameof(value));
 
             _preloadedData[uri] = value;
         }

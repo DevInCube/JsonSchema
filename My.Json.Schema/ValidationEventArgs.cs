@@ -9,7 +9,7 @@ namespace My.Json.Schema
 
         public ValidationEventArgs(ValidationError error)
         {
-            if (error == null) throw new ArgumentNullException("error");
+            if (error == null) throw new ArgumentNullException(nameof(error));
 
             this._error = error;
             this._message = error.Message;

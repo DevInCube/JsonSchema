@@ -20,7 +20,7 @@ namespace My.Json.Schema
 
         public void Validate(JToken data, JSchema schema)
         {            
-            if (schema == null) throw new ArgumentNullException("schema");
+            if (schema == null) throw new ArgumentNullException(nameof(schema));
 
             this._data = data;
             this._schema = schema;
@@ -447,7 +447,7 @@ namespace My.Json.Schema
 
         private void RaiseValidationError(string message, IList<ValidationError> childErrors = null)
         {
-            if (String.IsNullOrWhiteSpace(message)) throw new ArgumentNullException("message");
+            if (String.IsNullOrWhiteSpace(message)) throw new ArgumentNullException(nameof(message));
 
             ValidationErrorHandler handler = ErrorHandled;
             if (handler != null)
