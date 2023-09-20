@@ -10,6 +10,7 @@ namespace My.Json.Schema
 {
     public class JSchemaValidationReader
     {
+        private const double SafePrecisionValue = 1e-7;
 
         public event ValidationErrorHandler ErrorHandled;
 
@@ -255,12 +256,19 @@ namespace My.Json.Schema
             }
             if (_schema.MultipleOf != null)
             {
-                if (Math.Abs(doubleValue) > 1e-7)
+                if (Math.Abs(doubleValue) > SafePrecisionValue)
                 {
-                    decimal value = (decimal)doubleValue;
-                    decimal multiple = (decimal)_schema.MultipleOf;
-                    if (value % multiple != 0)
-                        RaiseValidationError("Value is not a multiple of");
+                    try
+                    {
+                        decimal value = (decimal)doubleValue;
+                        decimal multiple = (decimal)_schema.MultipleOf;
+                        if (Math.Abs(value % multiple) > (decimal)SafePrecisionValue)
+                            RaiseValidationError("Value is not a multiple of");
+                    }
+                    catch (OverflowException)
+                    {
+                        RaiseValidationError("Value overflow");
+                    }
                 }
             }
         }
@@ -437,9 +445,9 @@ namespace My.Json.Schema
             }
             if (_schema.MultipleOf != null)
             {
-                if (Math.Abs(integer) > 1e-7)
+                if (Math.Abs(integer) > SafePrecisionValue)
                 {
-                    if (integer % _schema.MultipleOf != 0)
+                    if (Math.Abs(integer % (double)_schema.MultipleOf) > SafePrecisionValue)
                         RaiseValidationError("Value is not a multiple of");
                 }
             }
