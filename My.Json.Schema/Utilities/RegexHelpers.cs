@@ -1,19 +1,18 @@
 ﻿using System.Text.RegularExpressions;
 
-namespace My.Json.Schema.Utilities
+namespace My.Json.Schema.Utilities;
+
+public static class RegexHelpers
 {
-    public static class RegexHelpers
+    public static Regex Create(string pattern)
     {
-        public static Regex Create(string pattern)
+        try
         {
-            try
-            {
-                return new Regex(pattern);
-            }
-            catch
-            {
-                throw;
-            }
+            return new Regex(pattern);
+        }
+        catch
+        {
+            throw;
         }
     }
 }

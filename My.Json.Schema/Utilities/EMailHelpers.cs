@@ -1,18 +1,17 @@
-﻿namespace My.Json.Schema.Utilities
+﻿namespace My.Json.Schema.Utilities;
+
+public static class EMailHelpers
 {
-    public static class EMailHelpers
+    public static bool IsValidEmail(string email)
     {
-        public static bool IsValidEmail(string email)
+        try
         {
-            try
-            {
-                var addr = new System.Net.Mail.MailAddress(email);
-                return addr.Address == email;
-            }
-            catch
-            {
-                return false;
-            }
+            var mailAddress = new System.Net.Mail.MailAddress(email);
+            return mailAddress.Address == email;
+        }
+        catch
+        {
+            return false;
         }
     }
 }

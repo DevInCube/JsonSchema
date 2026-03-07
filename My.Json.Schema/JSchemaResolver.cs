@@ -1,11 +1,10 @@
 ﻿using System;
 using System.IO;
 
-namespace My.Json.Schema
-{
-    public abstract class JSchemaResolver
-    {
+namespace My.Json.Schema;
 
-        public abstract Stream GetSchemaResource(Uri newUri);
-    }
+public abstract class JSchemaResolver
+{
+
+    public abstract Stream GetSchemaResource(Uri newUri);
 }

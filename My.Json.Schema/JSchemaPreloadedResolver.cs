@@ -3,65 +3,58 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
-namespace My.Json.Schema
+namespace My.Json.Schema;
+
+public class JSchemaPreloadedResolver : JSchemaResolver
 {
-    public class JSchemaPreloadedResolver : JSchemaResolver
+
+    private readonly Dictionary<Uri, byte[]> _preloadedData;
+    private readonly JSchemaResolver _resolver;
+
+    public IEnumerable<Uri> PreloadedUris => _preloadedData.Keys;
+
+    public JSchemaPreloadedResolver(JSchemaResolver resolver)
+        : this()
     {
+        _resolver = resolver;
+    }
 
-        private readonly Dictionary<Uri, byte[]> _preloadedData;
-        private readonly JSchemaResolver _resolver;
+    public JSchemaPreloadedResolver()
+    {
+        _preloadedData = [];
+    }
 
-        public IEnumerable<Uri> PreloadedUris
+    public override Stream GetSchemaResource(Uri newUri)
+    {
+        if (_preloadedData.TryGetValue(newUri, out byte[] data))
         {
-            get { return _preloadedData.Keys; }
+            return new MemoryStream(data);
         }
 
-        public JSchemaPreloadedResolver(JSchemaResolver resolver)
-            : this()
-        {
-            _resolver = resolver;
-        }
+        return _resolver?.GetSchemaResource(newUri);
+    }
+  
+    public void Add(Uri uri, byte[] value)
+    {
+        ArgumentNullException.ThrowIfNull(uri);
 
-        public JSchemaPreloadedResolver()
-        {
-            _preloadedData = new Dictionary<Uri, byte[]>();
-        }
+        ArgumentNullException.ThrowIfNull(value);
 
-        public override Stream GetSchemaResource(Uri uri)
-        {
-            byte[] data;
-            if (_preloadedData.TryGetValue(uri, out data))
-                return new MemoryStream(data);
+        _preloadedData[uri] = value;
+    }
+  
+    public void Add(Uri uri, Stream value)
+    {
+        MemoryStream ms = new();
+        value.CopyTo(ms);
 
-            return _resolver != null 
-                ? _resolver.GetSchemaResource(uri) 
-                : null;
-        }
-      
-        public void Add(Uri uri, byte[] value)
-        {
-            if (uri == null)
-                throw new ArgumentNullException(nameof(uri));
+        Add(uri, ms.ToArray());
+    }
 
-            if (value == null)
-                throw new ArgumentNullException(nameof(value));
+    public void Add(Uri uri, string value)
+    {
+        byte[] data = Encoding.UTF8.GetBytes(value);
 
-            _preloadedData[uri] = value;
-        }
-      
-        public void Add(Uri uri, Stream value)
-        {
-            MemoryStream ms = new MemoryStream();
-            value.CopyTo(ms);
-
-            Add(uri, ms.ToArray());
-        }
-
-        public void Add(Uri uri, string value)
-        {
-            byte[] data = Encoding.UTF8.GetBytes(value);
-
-            Add(uri, data);
-        }
+        Add(uri, data);
     }
 }

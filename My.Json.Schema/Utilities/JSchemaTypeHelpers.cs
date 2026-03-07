@@ -1,22 +1,21 @@
-﻿namespace My.Json.Schema.Utilities
+﻿namespace My.Json.Schema.Utilities;
+
+public static class JSchemaTypeHelpers
 {
-    public static class JSchemaTypeHelpers
+
+    public static JSchemaType ParseType(string strType)
     {
-
-        public static JSchemaType ParseType(string strType)
+        return strType switch
         {
-            switch (strType)
-            {                
-                case ("array"): return JSchemaType.Array;
-                case ("boolean"): return JSchemaType.Boolean;
-                case ("integer"): return JSchemaType.Integer;
-                case ("number"): return JSchemaType.Number;
-                case ("null"): return JSchemaType.Null;
-                case ("object"): return JSchemaType.Object;
-                case ("string"): return JSchemaType.String;
-                default: throw new JSchemaException();
-            }    
-        }
-
+            "array" => JSchemaType.Array,
+            "boolean" => JSchemaType.Boolean,
+            "integer" => JSchemaType.Integer,
+            "number" => JSchemaType.Number,
+            "null" => JSchemaType.Null,
+            "object" => JSchemaType.Object,
+            "string" => JSchemaType.String,
+            _ => throw new JSchemaException(),
+        };
     }
+
 }

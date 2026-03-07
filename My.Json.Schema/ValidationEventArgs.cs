@@ -1,23 +1,18 @@
 ﻿using System;
-namespace My.Json.Schema
+namespace My.Json.Schema;
+
+public class ValidationEventArgs : EventArgs
 {
-    public class ValidationEventArgs : EventArgs
+    public ValidationEventArgs(ValidationError error)
     {
+        ArgumentNullException.ThrowIfNull(error);
 
-        private readonly ValidationError _error;
-        private readonly string _message;
-
-        public ValidationEventArgs(ValidationError error)
-        {
-            if (error == null) throw new ArgumentNullException(nameof(error));
-
-            this._error = error;
-            this._message = error.Message;
-        }
-
-        public ValidationError Error { get { return _error; } }
-
-        public string Message { get { return _message; } }
-
+        Error = error;
+        Message = error.Message;
     }
+
+    public ValidationError Error { get; }
+
+    public string Message { get; }
+
 }
