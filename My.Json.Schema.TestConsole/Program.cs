@@ -12,7 +12,9 @@ namespace My.Json.Schema.TestConsole
         private static void Main(string[] args)
         {
             string remoteHost = "http://localhost:1234";
-            string testSuiteDirectory = "Resources";
+            string testSuiteDirectoryName = "Resources";
+            string applicationDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            string testSuiteDirectory = Path.Combine(applicationDirectory, testSuiteDirectoryName);
             string remoteDirectory = Path.Combine(testSuiteDirectory, @"remotes");
             JSchemaResolver resolver = new JSchemaTestRemoteResolver(remoteHost, remoteDirectory);
 
