@@ -125,12 +125,13 @@ namespace My.Json.Schema
             }
             else
             {
+                Uri refStrUri = null;
                 try
                 {
-                    Uri absUri = new Uri(refStr);
-                    if (absUri.IsAbsoluteUri)
+                    if (Uri.TryCreate(refStr, UriKind.RelativeOrAbsolute, out refStrUri)
+                        && refStrUri.IsAbsoluteUri)
                     {
-                        return ResolveExternalReference(absUri);
+                        return ResolveExternalReference(refStrUri);
                     }
                 }
                 catch (UriFormatException) { }

@@ -208,7 +208,7 @@ namespace My.Json.Schema
 
             if (_schema.Pattern != null)
             {
-                Regex regex = new Regex(_schema.Pattern);
+                Regex regex = RegexHelpers.Create(_schema.Pattern);
                 if (!regex.IsMatch(value)) 
                     RaiseValidationError("String does not matches pattern");
             }
@@ -281,19 +281,14 @@ namespace My.Json.Schema
             }
             if (_schema.MultipleOf != null)
             {
-                if (Math.Abs(doubleValue) > SafePrecisionValue)
+                try
                 {
-                    try
-                    {
-                        decimal value = (decimal)doubleValue;
-                        decimal multiple = (decimal)_schema.MultipleOf;
-                        if (Math.Abs(value % multiple) > (decimal)SafePrecisionValue)
-                            RaiseValidationError("Value is not a multiple of");
-                    }
-                    catch (OverflowException)
-                    {
-                        RaiseValidationError("Value overflow");
-                    }
+                    if (Math.Abs(Math.IEEERemainder(doubleValue, _schema.MultipleOf.Value)) > SafePrecisionValue)
+                        RaiseValidationError("Value is not a multiple of");
+                }
+                catch (OverflowException)
+                {
+                    RaiseValidationError("Value overflow");
                 }
             }
         }
@@ -404,7 +399,7 @@ namespace My.Json.Schema
 
                 foreach (var patternPair in _schema.PatternProperties)
                 {
-                    Regex nameRegex = new Regex(patternPair.Key);
+                    Regex nameRegex = RegexHelpers.Create(patternPair.Key);
                     if (nameRegex.IsMatch(propName))
                         schemas.Add(patternPair.Value);
                 }

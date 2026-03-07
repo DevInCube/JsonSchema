@@ -52,7 +52,7 @@ namespace My.Json.Schema.Utilities
 
             try
             {
-                new Regex(value);
+                _ = RegexHelpers.Create(value);
                 return true;
             }
             catch
