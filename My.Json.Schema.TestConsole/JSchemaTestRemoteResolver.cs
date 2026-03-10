@@ -4,10 +4,9 @@ using System.Text;
 
 namespace My.Json.Schema.TestConsole;
 
-internal class JSchemaTestRemoteResolver : JSchemaResolver
+internal sealed class JSchemaTestRemoteResolver : JSchemaResolver
 {
-
-    private string _remoteHost;
+    private readonly string _remoteHost;
     private readonly string _remoteDirectory;
 
     public JSchemaTestRemoteResolver(string remoteHost, string remoteDirectory)
@@ -21,6 +20,6 @@ internal class JSchemaTestRemoteResolver : JSchemaResolver
         ArgumentNullException.ThrowIfNull(newUri);
 
         string content = File.ReadAllText(_remoteDirectory + newUri.AbsolutePath);
-        return new MemoryStream(Encoding.UTF8.GetBytes(content));            
+        return new MemoryStream(Encoding.UTF8.GetBytes(content));
     }
 }

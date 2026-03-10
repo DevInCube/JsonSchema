@@ -1,4 +1,6 @@
-﻿namespace My.Json.Schema.Utilities;
+﻿using System;
+
+namespace My.Json.Schema.Utilities;
 
 public static class EMailHelpers
 {
@@ -9,7 +11,7 @@ public static class EMailHelpers
             var mailAddress = new System.Net.Mail.MailAddress(email);
             return mailAddress.Address == email;
         }
-        catch
+        catch (FormatException)
         {
             return false;
         }

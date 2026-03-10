@@ -1,19 +1,26 @@
-﻿using Newtonsoft.Json;
+﻿using My.Json.Schema.Utilities;
+using Newtonsoft.Json;
 using System;
 using System.Text;
-using My.Json.Schema.Utilities;
 
 namespace My.Json.Schema;
 
 public class JSchemaException : Exception
 {
-
     public JSchemaException() { }
 
-    public JSchemaException(string message) : base(message) { }
+    public JSchemaException(string message)
+        : base(message)
+    {
+    }
+
+    public JSchemaException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
 
     public JSchemaException(string message, string path, IJsonLineInfo lineInfo)
-        :this(FormatMessage(message, path, lineInfo))
+        : this(FormatMessage(message, path, lineInfo))
     {
     }
 

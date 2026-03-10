@@ -5,9 +5,8 @@ using System.Linq;
 
 namespace My.Json.Schema.TestConsole;
 
-internal class TestContext
+internal sealed class TestContext
 {
-
     public string Description { get; private set; }
     public JObject Schema { get; private set; }
     public IList<TestCase> Cases { get; private set; }
@@ -19,8 +18,8 @@ internal class TestContext
         return new TestContext
         {
             Description = testObject.GetValue("description").Value<string>(),
-            Schema = (JObject) testObject.GetValue("schema"),
-            Cases = ((JArray) testObject.GetValue("tests"))
+            Schema = (JObject)testObject.GetValue("schema"),
+            Cases = ((JArray)testObject.GetValue("tests"))
                 .Children<JObject>()
                 .Select(TestCase.Create)
                 .ToList()

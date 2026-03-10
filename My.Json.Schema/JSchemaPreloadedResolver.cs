@@ -7,7 +7,6 @@ namespace My.Json.Schema;
 
 public class JSchemaPreloadedResolver : JSchemaResolver
 {
-
     private readonly Dictionary<Uri, byte[]> _preloadedData;
     private readonly JSchemaResolver _resolver;
 
@@ -33,7 +32,7 @@ public class JSchemaPreloadedResolver : JSchemaResolver
 
         return _resolver?.GetSchemaResource(newUri);
     }
-  
+
     public void Add(Uri uri, byte[] value)
     {
         ArgumentNullException.ThrowIfNull(uri);
@@ -42,9 +41,11 @@ public class JSchemaPreloadedResolver : JSchemaResolver
 
         _preloadedData[uri] = value;
     }
-  
+
     public void Add(Uri uri, Stream value)
     {
+        ArgumentNullException.ThrowIfNull(value);
+
         MemoryStream ms = new();
         value.CopyTo(ms);
 

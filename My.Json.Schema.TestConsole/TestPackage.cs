@@ -2,9 +2,9 @@
 
 namespace My.Json.Schema.TestConsole;
 
-internal class TestPackage
+internal sealed class TestPackage
 {
-
     public string Name { get; set; }
+
     public List<TestContext> Tests { get; set; }
 }

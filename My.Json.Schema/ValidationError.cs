@@ -1,18 +1,20 @@
-﻿using System;
+﻿using My.Json.Schema.Utilities;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 using System.Text;
-using My.Json.Schema.Utilities;
-using Newtonsoft.Json.Linq;
-using Newtonsoft.Json;
 
 namespace My.Json.Schema;
 
 public class ValidationError
 {
     public string Path { get; }
+
     public string Message { get; }
-    public IJsonLineInfo LineInfo { get; internal set; }
-    public IList<ValidationError> ChildErrors { get => field ??= []; internal set; }
+
+    public IJsonLineInfo LineInfo { get; }
+
+    public IList<ValidationError> ChildErrors { get => field ??= []; init; }
 
     public ValidationError(string message)
     {
@@ -20,15 +22,10 @@ public class ValidationError
     }
 
     public ValidationError(string message, JToken data)
+        : this(message)
     {
-        Message = message;
-        string path = (data == null || String.IsNullOrWhiteSpace(data.Path)) ? null : data.Path;
-        if(data != null)
-        {
-            LineInfo = data;
-        }
-
-        Path = path;
+        Path = !string.IsNullOrWhiteSpace(data?.Path) ? data.Path : null;
+        LineInfo = data;
     }
 
     internal string CreateFullMessage()
@@ -54,5 +51,4 @@ public class ValidationError
 
         return bld.ToString();
     }
-
 }

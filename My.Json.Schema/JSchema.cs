@@ -1,13 +1,12 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using My.Json.Schema.Utilities;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
-using My.Json.Schema.Utilities;
 
 namespace My.Json.Schema;
 
 public class JSchema
 {
-
     internal JObject Schema;
 
     #region public properties
@@ -20,8 +19,8 @@ public class JSchema
             field = value;
             if (!Id.IsAbsoluteUri)
             {
-                if (String.IsNullOrWhiteSpace(field.OriginalString)
-                    || field.OriginalString.Equals("#"))
+                if (string.IsNullOrWhiteSpace(field.OriginalString)
+                    || field.OriginalString.Equals("#", StringComparison.Ordinal))
                 {
                     throw new JSchemaException("invalid id : {0}".FormatWith(Id));
                 }
@@ -36,8 +35,11 @@ public class JSchema
     public IDictionary<string, JSchema> PatternProperties => field ??= new Dictionary<string, JSchema>();
 
     public string Title { get; set; }
+
     public string Description { get; set; }
+
     public object Default { get; set; }
+
     public string Format { get; set; }
 
     public JSchema ItemsSchema
@@ -63,8 +65,11 @@ public class JSchema
     }
 
     public double? Maximum { get; set; }
+
     public double? Minimum { get; set; }
+
     public bool ExclusiveMaximum { get; set; }
+
     public bool ExclusiveMinimum { get; set; }
 
     public int? MaxLength
@@ -218,7 +223,7 @@ public class JSchema
     {
         ArgumentNullException.ThrowIfNull(json);
 
-        if (String.IsNullOrWhiteSpace(json))
+        if (string.IsNullOrWhiteSpace(json))
         {
             throw new JSchemaException("invalid json");
         }
@@ -228,5 +233,4 @@ public class JSchema
         JSchemaReader reader = new();
         return reader.ReadSchema(jtoken, resolver);
     }
-
 }

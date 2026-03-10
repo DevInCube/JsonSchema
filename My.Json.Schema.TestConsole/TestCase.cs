@@ -3,12 +3,13 @@ using System;
 
 namespace My.Json.Schema.TestConsole;
 
-internal class TestCase
+internal sealed class TestCase
 {
+    public string Description { get; init; }
 
-    public string Description { get; private set; }
-    public JToken Data { get; private set; }
-    public bool Valid { get; private set; }
+    public JToken Data { get; init; }
+
+    public bool Valid { get; init; }
 
     internal static TestCase Create(JObject obj)
     {

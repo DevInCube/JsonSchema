@@ -1,20 +1,21 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using My.Json.Schema.Utilities;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using My.Json.Schema.Utilities;
-using Newtonsoft.Json;
+using System.Globalization;
 using System.IO;
+using System.Linq;
 
 namespace My.Json.Schema;
 
 public class JSchemaReader
 {
-
-    private JSchemaResolver _resolver;
     private readonly Stack<JSchema> _schemaStack = new();
     private readonly Stack<Uri> _scopeStack = new();
-    private readonly IDictionary<Uri, JSchema> _resolutionScopes;
+    private readonly Dictionary<Uri, JSchema> _resolutionScopes;
+
+    private JSchemaResolver _resolver;
 
     public JSchemaReader()
     {
@@ -58,7 +59,7 @@ public class JSchemaReader
 
     private JSchema ResolveReference(string refStr, JObject jObject)
     {
-        if (String.IsNullOrWhiteSpace(refStr))
+        if (string.IsNullOrWhiteSpace(refStr))
         {
             throw new JSchemaException("empty reference", jObject.Path, jObject);
         }
@@ -72,18 +73,11 @@ public class JSchemaReader
         {
             foreach (var scope in _resolutionScopes)
             {
-                Uri relativeUri;
-
                 Uri baseUri = _schemaStack.Last().Id;
 
-                if (baseUri != null && baseUri.IsAbsoluteUri)
-                {
-                    relativeUri = new Uri(baseUri, refStr);
-                }
-                else
-                {
-                    relativeUri = new Uri(refStr, UriKind.RelativeOrAbsolute);
-                }
+                Uri relativeUri = baseUri != null && baseUri.IsAbsoluteUri
+                    ? new Uri(baseUri, refStr)
+                    : new Uri(refStr, UriKind.RelativeOrAbsolute);
 
                 Uri scopeUri = scope.Key;
 
@@ -94,50 +88,48 @@ public class JSchemaReader
                 }
             }
 
-            JObject rootObject = (JObject) jObject.GetRootParent();
+            JObject rootObject = (JObject)jObject.GetRootParent();
             string[] fragments = refStr.Split('#');
             string fullHost = fragments[0];
             string path = fragments[1];
-            if (!String.IsNullOrEmpty(fullHost))
-            {
-
-                string rootId = null;
-                if (rootObject.TryGetValue(SchemaKeywords.Id, out JToken t2))
-                {
-                    rootId = t2.Value<string>().Split('#')[0];
-                    if (rootId.Equals(fullHost))
-                    {
-                        return ResolveInternalReference(path, rootObject);
-                    }
-                }
-                else
-                {
-                    if (String.IsNullOrWhiteSpace(fullHost))
-                    {
-                        throw new JSchemaException("host is empty", jObject.Path, jObject);
-                    }
-                }
-
-                if (_resolver == null)
-                {
-                    throw new JSchemaException("can't resolve external reference without resolver", jObject.Path, jObject);
-                }
-
-                Uri remoteUri;
-                try
-                {
-                    remoteUri = new Uri(refStr);
-                }
-                catch (UriFormatException)
-                {
-                    remoteUri = new Uri(new Uri(rootId), refStr);
-                }
-                return ResolveExternalReference(remoteUri);
-            }
-            else
+            if (string.IsNullOrEmpty(fullHost))
             {
                 return ResolveInternalReference(fragments[1], rootObject);
             }
+
+            string rootId = null;
+            if (rootObject.TryGetValue(SchemaKeywords.Id, out JToken t2))
+            {
+                rootId = t2.Value<string>().Split('#')[0];
+                if (rootId.Equals(fullHost))
+                {
+                    return ResolveInternalReference(path, rootObject);
+                }
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(fullHost))
+                {
+                    throw new JSchemaException("host is empty", jObject.Path, jObject);
+                }
+            }
+
+            if (_resolver == null)
+            {
+                throw new JSchemaException("can't resolve external reference without resolver", jObject.Path, jObject);
+            }
+
+            Uri remoteUri;
+            try
+            {
+                remoteUri = new Uri(refStr);
+            }
+            catch (UriFormatException)
+            {
+                remoteUri = new Uri(new Uri(rootId), refStr);
+            }
+
+            return ResolveExternalReference(remoteUri);
         }
         else
         {
@@ -150,7 +142,10 @@ public class JSchemaReader
                     return ResolveExternalReference(refStrUri);
                 }
             }
-            catch (UriFormatException) { }
+            catch (UriFormatException)
+            {
+                // Ignore.
+            }
 
             if (jObject.TryGetValue(refStr, out _))
             {
@@ -167,12 +162,9 @@ public class JSchemaReader
 
             JObject parent = (JObject)parentContainer;
 
-            string parentId = "";
-            JToken t2;
-            if (parent.TryGetValue("id", out t2))
-            {
-                parentId = t2.Value<string>();
-            }
+            string parentId = parent.TryGetValue(SchemaKeywords.Id, out JToken t2)
+                ? t2.Value<string>()
+                : string.Empty;
 
             return ResolveReference(string.Concat(parentId, refStr), parent);
         }
@@ -180,7 +172,7 @@ public class JSchemaReader
 
     private JSchema ResolveInternalReference(string path, JObject rootObject)
     {
-        string[] props = !string.IsNullOrEmpty(path) 
+        string[] props = !string.IsNullOrEmpty(path)
             ? path.TrimStart('/').Split('/')
             : [];
 
@@ -234,19 +226,20 @@ public class JSchemaReader
             throw new JSchemaException("can't resolve external schema without resolver");
         }
 
-        JObject obj = JObject.Load(new JsonTextReader(new StreamReader(_resolver.GetSchemaResource(newUri))));
+        using JsonTextReader reader = new(new StreamReader(_resolver.GetSchemaResource(newUri)));
+        JObject obj = JObject.Load(reader);
 
-        JSchemaReader externalReader = new() { _resolver = _resolver};
-        string[] fragments = newUri.OriginalString.Split('#');            
-        var externalSchema = fragments.Length > 1 
-            ? externalReader.ResolveInternalReference(fragments[1], obj) 
+        JSchemaReader externalReader = new() { _resolver = _resolver };
+        string[] fragments = newUri.OriginalString.Split('#');
+        var externalSchema = fragments.Length > 1
+            ? externalReader.ResolveInternalReference(fragments[1], obj)
             : externalReader.ReadSchema(obj, _resolver);
         return externalSchema;
     }
 
     private JSchema Load(JObject jtoken)
     {
-        JSchema jschema = new() { Schema = jtoken};
+        JSchema jschema = new() { Schema = jtoken };
 
         _schemaStack.Push(jschema);
 
@@ -267,7 +260,7 @@ public class JSchemaReader
                 throw new JSchemaException("definitions should be an object", value.Path, value);
             }
 
-            JObject definitions = (JObject) value;
+            JObject definitions = (JObject)value;
 
             foreach (JProperty prop in definitions.Properties())
             {
@@ -282,12 +275,9 @@ public class JSchemaReader
             }
         }
 
-        foreach (JProperty property in jtoken.Properties())
+        foreach (var property in jtoken.Properties().Where(property => !property.Name.Equals(SchemaKeywords.Id)))
         {
-            if (!property.Name.Equals(SchemaKeywords.Id))
-            {
-                ProcessSchemaProperty(jschema, property.Name, property.Value);
-            }
+            ProcessSchemaProperty(jschema, property.Name, property.Value);
         }
 
         if (popAfter && _scopeStack.Count > 0)
@@ -301,91 +291,106 @@ public class JSchemaReader
 
     private void ProcessSchemaProperty(JSchema jschema, string name, JToken value)
     {
+        static JSchemaType GetType(JToken value)
+        {
+            static JSchemaType GetArrayType(JToken value)
+            {
+                JEnumerable<JToken> array = value.Value<JArray>().Children();
+                if (!array.Any())
+                {
+                    throw new JSchemaException("type array cannot be empty", value.Path, value);
+                }
+
+                JSchemaType result = JSchemaType.None;
+                foreach (var arrItem in array)
+                {
+                    if (arrItem.Type != JTokenType.String)
+                    {
+                        throw new JSchemaException("type array items should be strings", arrItem.Path, arrItem);
+                    }
+
+                    JSchemaType parsedType = JSchemaTypeHelpers.ParseType(arrItem.Value<string>());
+                    if (result == JSchemaType.None)
+                    {
+                        result = parsedType;
+                    }
+                    else
+                    {
+                        if (result.HasFlag(parsedType))
+                        {
+                            throw new JSchemaException("type array items are not unique", arrItem.Path, arrItem);
+                        }
+
+                        result |= parsedType;
+                    }
+                }
+
+                return result;
+            }
+
+            if (value.Type == JTokenType.String)
+            {
+                return JSchemaTypeHelpers.ParseType(value.Value<string>());
+            }
+
+            if (value.Type == JTokenType.Array)
+            {
+                return GetArrayType(value);
+            }
+
+            throw new JSchemaException("type is " + value.Type, value.Path, value);
+        }
+
+        void ReadId()
+        {
+            string id = ReadString(value, name);
+            jschema.Id = new Uri(id, UriKind.RelativeOrAbsolute);
+
+            var scopeUri = _scopeStack.Count > 0
+                ? new Uri(_scopeStack.Peek(), jschema.Id)
+                : jschema.Id;
+            _scopeStack.Push(scopeUri);
+            _resolutionScopes[scopeUri] = jschema;
+        }
+
         switch (name)
         {
-            case (SchemaKeywords.Id):
+            case SchemaKeywords.Id:
                 {
-                    string id = ReadString(value, name);
-                    jschema.Id = new Uri(id, UriKind.RelativeOrAbsolute);
-
-                    var scopeUri = _scopeStack.Count > 0 
-                        ? new Uri(_scopeStack.Peek(), jschema.Id) 
-                        : jschema.Id;
-                    _scopeStack.Push(scopeUri);
-                    _resolutionScopes[scopeUri] = jschema;
-
+                    ReadId();
                     break;
                 }
-            case (SchemaKeywords.Title):
+            case SchemaKeywords.Title:
                 {
                     jschema.Title = ReadString(value, name);
                     break;
                 }
-            case (SchemaKeywords.Description):
+            case SchemaKeywords.Description:
                 {
                     jschema.Description = ReadString(value, name);
                     break;
                 }
-            case (SchemaKeywords.Default):
+            case SchemaKeywords.Default:
                 {
                     jschema.Default = value;
                     break;
                 }
-            case (SchemaKeywords.Format):
+            case SchemaKeywords.Format:
                 {
                     jschema.Format = ReadString(value, name);
                     break;
                 }
-            case (SchemaKeywords.Type):
+            case SchemaKeywords.Type:
                 {
-                    if (value.Type == JTokenType.String)
-                    {
-                        jschema.Type = JSchemaTypeHelpers.ParseType(value.Value<string>());
-                    }
-                    else if (value.Type == JTokenType.Array)
-                    {
-                        JEnumerable<JToken> array = value.Value<JArray>().Children();
-                        if (!array.Any())
-                        {
-                            throw new JSchemaException("type array cannot be empty", value.Path, value);
-                        }
-
-                        foreach (var arrItem in array)
-                        {
-                            if (arrItem.Type != JTokenType.String)
-                            {
-                                throw new JSchemaException("type array items should be strings", arrItem.Path, arrItem);
-                            }
-
-                            JSchemaType type = JSchemaTypeHelpers.ParseType(arrItem.Value<string>());
-                            if (jschema.Type == JSchemaType.None)
-                            {
-                                jschema.Type = type;
-                            }
-                            else
-                            {
-                                if (jschema.Type.HasFlag(type))
-                                {
-                                    throw new JSchemaException("type array items are not unique", arrItem.Path, arrItem);
-                                }
-
-                                jschema.Type |= type;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        throw new JSchemaException("type is " + value.Type, value.Path, value);
-                    }
-
+                    jschema.Type = GetType(value);
                     break;
                 }
-            case (SchemaKeywords.Pattern):
+            case SchemaKeywords.Pattern:
                 {
                     jschema.Pattern = ReadString(value, name);
                     break;
                 }
-            case (SchemaKeywords.Items):
+            case SchemaKeywords.Items:
                 {
                     if (value.Type == JTokenType.Undefined
                         || value.Type == JTokenType.Null)
@@ -399,7 +404,7 @@ public class JSchemaReader
                     }
                     else if (value.Type == JTokenType.Array)
                     {
-                        foreach (var jsh in ((JArray) value).Children())
+                        foreach (var jsh in ((JArray)value).Children())
                         {
                             if (jsh.Type != JTokenType.Object)
                             {
@@ -417,14 +422,14 @@ public class JSchemaReader
 
                     break;
                 }
-            case (SchemaKeywords.Dependencies):
+            case SchemaKeywords.Dependencies:
                 {
                     if (value.Type != JTokenType.Object)
                     {
                         throw new JSchemaException("dependencies should be an object", value.Path, value);
                     }
 
-                    JObject dependencies = (JObject) value;
+                    JObject dependencies = (JObject)value;
 
                     foreach (var prop in dependencies.Properties())
                     {
@@ -436,7 +441,7 @@ public class JSchemaReader
                         }
                         else if (dependency.Type == JTokenType.Array)
                         {
-                            JArray depArray = (JArray) dependency;
+                            JArray depArray = (JArray)dependency;
 
                             if (depArray.Count == 0)
                             {
@@ -467,16 +472,17 @@ public class JSchemaReader
                             throw new JSchemaException("dependencies property should be an object or array", dependency.Path, dependency);
                         }
                     }
+
                     break;
                 }
-            case (SchemaKeywords.Properties):
+            case SchemaKeywords.Properties:
                 {
                     if (value.Type != JTokenType.Object)
                     {
                         throw new JSchemaException("properties should be an object", value.Path, value);
                     }
 
-                    JObject props = (JObject) value;
+                    JObject props = (JObject)value;
                     foreach (var prop in props.Properties())
                     {
                         JToken val = prop.Value;
@@ -488,9 +494,10 @@ public class JSchemaReader
                         JObject objVal = val as JObject;
                         jschema.Properties[prop.Name] = ReadSchema(objVal, _resolver);
                     }
+
                     break;
                 }
-            case (SchemaKeywords.PatternProperties):
+            case SchemaKeywords.PatternProperties:
                 {
                     if (value.Type != JTokenType.Object)
                     {
@@ -509,24 +516,25 @@ public class JSchemaReader
                         JObject objVal = val as JObject;
                         jschema.PatternProperties[prop.Name] = ReadSchema(objVal, _resolver);
                     }
+
                     break;
                 }
-            case (SchemaKeywords.MultipleOf):
+            case SchemaKeywords.MultipleOf:
                 {
                     jschema.MultipleOf = ReadDouble(value, name);
                     break;
                 }
-            case (SchemaKeywords.Maximum):
+            case SchemaKeywords.Maximum:
                 {
                     jschema.Maximum = ReadDouble(value, name);
                     break;
                 }
-            case (SchemaKeywords.Minimum):
+            case SchemaKeywords.Minimum:
                 {
                     jschema.Minimum = ReadDouble(value, name);
                     break;
                 }
-            case (SchemaKeywords.ExclusiveMaximum):
+            case SchemaKeywords.ExclusiveMaximum:
                 {
                     if (jschema.Maximum == null)
                     {
@@ -536,59 +544,59 @@ public class JSchemaReader
                     jschema.ExclusiveMaximum = ReadBoolean(value, name);
                     break;
                 }
-            case (SchemaKeywords.ExclusiveMinimum):
+            case SchemaKeywords.ExclusiveMinimum:
                 {
                     if (jschema.Minimum == null)
                     {
-                        throw new JSchemaException("minimum not set", value.Path, value);
+                        throw new JSchemaException("minimum is not set", value.Path, value);
                     }
 
                     jschema.ExclusiveMinimum = ReadBoolean(value, name);
                     break;
                 }
-            case (SchemaKeywords.MaximumLength):
+            case SchemaKeywords.MaximumLength:
                 {
                     jschema.MaxLength = ReadInteger(value, name);
                     break;
                 }
-            case (SchemaKeywords.MinimumLength):
+            case SchemaKeywords.MinimumLength:
                 {
                     jschema.MinLength = ReadInteger(value, name);
                     break;
                 }
-            case (SchemaKeywords.MaximumItems):
+            case SchemaKeywords.MaximumItems:
                 {
                     jschema.MaxItems = ReadInteger(value, name);
                     break;
                 }
-            case (SchemaKeywords.MinimumItems):
+            case SchemaKeywords.MinimumItems:
                 {
                     jschema.MinItems = ReadInteger(value, name);
                     break;
                 }
-            case (SchemaKeywords.UniqueItems):
+            case SchemaKeywords.UniqueItems:
                 {
                     jschema.UniqueItems = ReadBoolean(value, name);
                     break;
                 }
-            case (SchemaKeywords.MaximumProperties):
+            case SchemaKeywords.MaximumProperties:
                 {
                     jschema.MaxProperties = ReadInteger(value, name);
                     break;
                 }
-            case (SchemaKeywords.MinimumProperties):
+            case SchemaKeywords.MinimumProperties:
                 {
                     jschema.MinProperties = ReadInteger(value, name);
                     break;
                 }
-            case (SchemaKeywords.Required):
+            case SchemaKeywords.Required:
                 {
                     if (value.Type != JTokenType.Array)
                     {
                         throw new JSchemaException("required should be  an array", value.Path, value);
                     }
 
-                    JArray array = (JArray) value;
+                    JArray array = (JArray)value;
                     if (!value.Any())
                     {
                         throw new JSchemaException("required array cannot be empty", value.Path, value);
@@ -609,16 +617,17 @@ public class JSchemaReader
 
                         jschema.Required.Add(requiredProp);
                     }
+
                     break;
                 }
-            case (SchemaKeywords.Enum):
+            case SchemaKeywords.Enum:
                 {
                     if (value.Type != JTokenType.Array)
                     {
                         throw new JSchemaException("enum should be an array", value.Path, value);
                     }
 
-                    JArray array = (JArray) value;
+                    JArray array = (JArray)value;
                     if (!value.Any())
                     {
                         throw new JSchemaException("enum array cannot be empty", value.Path, value);
@@ -633,9 +642,10 @@ public class JSchemaReader
 
                         jschema.Enum.Add(enumItem);
                     }
+
                     break;
                 }
-            case (SchemaKeywords.AdditionalProperties):
+            case SchemaKeywords.AdditionalProperties:
                 {
                     if (!(value.Type == JTokenType.Boolean || value.Type == JTokenType.Object))
                     {
@@ -652,9 +662,10 @@ public class JSchemaReader
                         JObject obj = value as JObject;
                         jschema.AdditionalProperties = ReadSchema(obj, _resolver);
                     }
+
                     break;
                 }
-            case (SchemaKeywords.AllOf):
+            case SchemaKeywords.AllOf:
                 {
                     var schemas = ReadSchemaArray(value, name);
                     foreach (var sh in schemas)
@@ -664,7 +675,7 @@ public class JSchemaReader
 
                     break;
                 }
-            case (SchemaKeywords.AnyOf):
+            case SchemaKeywords.AnyOf:
                 {
                     var schemas = ReadSchemaArray(value, name);
                     foreach (var sh in schemas)
@@ -674,7 +685,7 @@ public class JSchemaReader
 
                     break;
                 }
-            case (SchemaKeywords.OneOf):
+            case SchemaKeywords.OneOf:
                 {
                     var schemas = ReadSchemaArray(value, name);
                     foreach (var sh in schemas)
@@ -684,22 +695,22 @@ public class JSchemaReader
 
                     break;
                 }
-            case (SchemaKeywords.Not):
+            case SchemaKeywords.Not:
                 {
                     if (value.Type != JTokenType.Object)
                     {
-                        throw new JSchemaException("not should be an object", value.Path, value);
+                        throw new JSchemaException("should not be an object", value.Path, value);
                     }
 
                     JObject obj = value as JObject;
                     jschema.Not = ReadSchema(obj, _resolver);
                     break;
                 }
-            case (SchemaKeywords.AdditionalItems):
+            case SchemaKeywords.AdditionalItems:
                 {
                     if (!(value.Type == JTokenType.Boolean || value.Type == JTokenType.Object))
                     {
-                        throw new JSchemaException();
+                        throw new JSchemaException("should not be a boolean or an object");
                     }
 
                     if (value.Type == JTokenType.Boolean)
@@ -712,6 +723,7 @@ public class JSchemaReader
                         JObject obj = value as JObject;
                         jschema.AdditionalItems = ReadSchema(obj, _resolver);
                     }
+
                     break;
                 }
             default:
@@ -729,13 +741,12 @@ public class JSchemaReader
             throw new JSchemaException("{0} should be an array".FormatWith(name), token.Path, token);
         }
 
-        JArray array = (JArray) token;
+        JArray array = (JArray)token;
         if (!token.Any())
         {
             throw new JSchemaException("{0} array cannot be empty".FormatWith(name), token.Path, token);
         }
 
-        IList<JSchema> list = [];
         foreach (var item in array.Children())
         {
             if (item.Type != JTokenType.Object)
@@ -744,11 +755,9 @@ public class JSchemaReader
             }
 
             JObject obj = item as JObject;
-            list.Add(ReadSchema(obj));
+            yield return ReadSchema(obj);
         }
-        return list;
     }
-
 
     private static double? ReadDouble(JToken token, string name)
     {
@@ -757,14 +766,14 @@ public class JSchemaReader
             throw new JSchemaException("'{0}' : expected number, got {1}".FormatWith(name, token.Type.ToString()), token.Path, token);
         }
 
-        return Convert.ToDouble(token);
+        return Convert.ToDouble(token, CultureInfo.InvariantCulture);
     }
 
     private static int? ReadInteger(JToken token, string name)
     {
         if (token.Type != JTokenType.Integer)
         {
-            throw new JSchemaException("'{0}' : expected number, got {1}".FormatWith(name, token.Type.ToString()), token.Path, token);
+            throw new JSchemaException("'{0}' : expected integer, got {1}".FormatWith(name, token.Type.ToString()), token.Path, token);
         }
 
         return token.Value<int>();
@@ -774,7 +783,7 @@ public class JSchemaReader
     {
         if (token.Type != JTokenType.Boolean)
         {
-            throw new JSchemaException("'{0}' : expected number, got {1}".FormatWith(name, token.Type.ToString()), token.Path, token);
+            throw new JSchemaException("'{0}' : expected boolean, got {1}".FormatWith(name, token.Type.ToString()), token.Path, token);
         }
 
         return token.Value<bool>();
@@ -784,10 +793,9 @@ public class JSchemaReader
     {
         if (!token.IsString())
         {
-            throw new JSchemaException("'{0}' : expected number, got {1}".FormatWith(name, token.Type.ToString()), token.Path, token);
+            throw new JSchemaException("'{0}' : expected string, got {1}".FormatWith(name, token.Type.ToString()), token.Path, token);
         }
 
         return token.Value<string>();
     }
-
 }

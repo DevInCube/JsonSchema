@@ -9,7 +9,7 @@ public static class DateTimeHelpers
 
     public static string ToJsonString(this DateTime datetime)
     {
-        return datetime.ToString(DateTimeFormat);
+        return datetime.ToString(DateTimeFormat, CultureInfo.InvariantCulture);
     }
 
     public static bool IsValidDateTimeFormat(string value)

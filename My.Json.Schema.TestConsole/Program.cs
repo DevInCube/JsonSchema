@@ -7,6 +7,8 @@ using System.Text;
 
 namespace My.Json.Schema.TestConsole;
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Globalization", "CA1303:Do not pass literals as localized parameters")]
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Globalization", "CA1305:Specify IFormatProvider")]
 internal static class Program
 {
     private static void Main(string[] args)
@@ -29,9 +31,10 @@ internal static class Program
         RunTests(draftTests, resolver);
         Console.WriteLine(Environment.NewLine + "OPTIONAL TESTS ====================");
         RunTests(draftOptionalTests, resolver);
-        Console.ReadKey(true);         
+        Console.ReadKey(true);
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types")]
     private static void RunTests(IEnumerable<TestPackage> draftTests, JSchemaResolver resolver)
     {
         int successCount = 0;
@@ -96,6 +99,7 @@ internal static class Program
                         caseFailedCount++;
                     }
                 }
+
                 if (caseFailedCount > 0 || caseExceptionCount > 0)
                 {
                     Console.WriteLine(builder.ToString());
@@ -116,7 +120,6 @@ internal static class Program
     {
         DirectoryInfo testsDir = new(testsDirPath);
         FileInfo[] testFiles = testsDir.GetFiles();
-        List<TestPackage> allTests = [];
         foreach (var testFile in testFiles)
         {
             List<TestContext> tests = [];
@@ -132,13 +135,11 @@ internal static class Program
                 tests.Add(TestContext.Create((JObject)item));
             }
 
-            allTests.Add(new TestPackage
+            yield return new TestPackage
             {
                 Name = testFile.Name,
-                Tests = tests
-            });
+                Tests = tests,
+            };
         }
-
-        return allTests;
     }
 }

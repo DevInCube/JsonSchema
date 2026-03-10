@@ -1,5 +1,4 @@
-﻿using System;
-using System.Globalization;
+﻿using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 
@@ -19,7 +18,7 @@ public static partial class StringHelpers
 
     public static string FormatWith(this string pattern, params object[] values)
     {
-        return String.Format(pattern, values);
+        return string.Format(CultureInfo.InvariantCulture, pattern, values);
     }
 
     internal static bool IsValidHostName(string value)
@@ -43,12 +42,13 @@ public static partial class StringHelpers
                 return false;
             }
         }
+
         return true;
     }
 
     internal static bool IsValidRegex(string value)
     {
-        if (String.IsNullOrEmpty(value))
+        if (string.IsNullOrEmpty(value))
         {
             return false;
         }
@@ -58,7 +58,7 @@ public static partial class StringHelpers
             _ = RegexHelpers.Create(value);
             return true;
         }
-        catch
+        catch (RegexParseException)
         {
             return false;
         }

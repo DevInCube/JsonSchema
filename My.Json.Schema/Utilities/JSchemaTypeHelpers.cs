@@ -2,7 +2,6 @@
 
 public static class JSchemaTypeHelpers
 {
-
     public static JSchemaType ParseType(string strType)
     {
         return strType switch
@@ -17,5 +16,4 @@ public static class JSchemaTypeHelpers
             _ => throw new JSchemaException(),
         };
     }
-
 }

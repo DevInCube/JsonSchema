@@ -1,16 +1,16 @@
-﻿using System;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Newtonsoft.Json.Linq;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
+using Newtonsoft.Json.Linq;
+using System;
 using System.IO;
 using System.Text;
 
 namespace My.Json.Schema.Tests;
 
 [TestClass]
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Maintainability", "CA1515:Consider making public types internal")]
 public class JSchemaTests
 {
-
     #region JSchema_tests
     [TestMethod]
     public void JSchema_ParseEmptySchema_InitialStateOK()
@@ -48,15 +48,15 @@ public class JSchemaTests
         Assert.AreNotEqual(null, subject.SchemaDependencies, "SchemaDependencies");
         Assert.AreEqual(0, subject.SchemaDependencies.Count, "SchemaDependencies.Count");
         Assert.AreNotEqual(null, subject.PropertyDependencies, "PropertyDependencies");
-        Assert.AreEqual(0, subject.PropertyDependencies.Count, "PropertyDependencies.Count");  
+        Assert.AreEqual(0, subject.PropertyDependencies.Count, "PropertyDependencies.Count");
     }
 
     [TestMethod]
     public void JSchema_EmptySchemaCompare_AreNotEqual()
     {
-        JSchema subject = JSchema.Parse(@"{}");   
-     
-        Assert.AreNotEqual(new JSchema(), subject);            
+        JSchema subject = JSchema.Parse(@"{}");
+
+        Assert.AreNotEqual(new JSchema(), subject);
     }
 
     [TestMethod]
@@ -146,7 +146,6 @@ public class JSchemaTests
         Assert.AreEqual(new Uri("#bar", UriKind.Relative), subject.Properties["test"].Id);
     }
 
-   
     #endregion
 
     #region title_tests
@@ -235,7 +234,7 @@ public class JSchemaTests
         Assert.AreEqual("test", subject.Format);
     }
     #endregion
-    
+
     #region type_tests
 
     [TestMethod]
@@ -251,7 +250,7 @@ public class JSchemaTests
         Assert.AreEqual(JSchemaType.Null, subject.Type);
     }
 
-    [TestMethod]   
+    [TestMethod]
     public void Type_SetEmptyArray_ThrowsError()
     {
         Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'type':[]}"));
@@ -434,7 +433,6 @@ public class JSchemaTests
         Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(shStr));
     }
 
-
     [TestMethod]
     public void Reference_SubschemaDiscovery_OK()
     {
@@ -463,8 +461,7 @@ public class JSchemaTests
     'not': { '$ref': '#/inner' },    
 }";
         Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(shStr));
-    }        
-
+    }
 
     [TestMethod]
     public void Reference_Loop_PointersEquals()
@@ -474,7 +471,7 @@ public class JSchemaTests
 
         var loop = subject.Properties["loop"];
         Assert.AreEqual(subject, loop);
-    }      
+    }
 
     #endregion
 
@@ -485,7 +482,7 @@ public class JSchemaTests
         string shStr = @"{ 'items': { 'type':'integer' }}";
         JSchema subject = JSchema.Parse(shStr);
 
-        Assert.IsTrue(subject.ItemsSchema.Type.HasFlag(JSchemaType.Integer));            
+        Assert.IsTrue(subject.ItemsSchema.Type.HasFlag(JSchemaType.Integer));
     }
 
     [TestMethod]
@@ -497,7 +494,7 @@ public class JSchemaTests
         Assert.AreEqual(2, subject.ItemsArray.Count);
         Assert.IsTrue(subject.ItemsArray[0].Type.HasFlag(JSchemaType.Integer));
         Assert.IsTrue(subject.ItemsArray[1].Type.HasFlag(JSchemaType.Boolean));
-    }    
+    }
     #endregion
 
     #region properties_tests
@@ -1070,7 +1067,7 @@ public class JSchemaTests
         JSchema subject = JSchema.Parse(@"{additionalProperties:{}}");
 
         Assert.IsTrue(JToken.DeepEquals(new JObject(), JObject.Parse(subject.AdditionalProperties.ToString())));
-    }        
+    }
     #endregion
 
     #region AllowAdditionalItems
@@ -1117,13 +1114,13 @@ public class JSchemaTests
         Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'allOf':[]}"));
     }
 
-    [TestMethod]   
+    [TestMethod]
     public void AllOf_ParseAsOneItemStringArray_ThrowsError()
     {
         Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'allOf':['string']}"));
     }
 
-    [TestMethod]        
+    [TestMethod]
     public void AllOf_ParseAsOneItemObjectArray_MatchesSchema()
     {
         JSchema subject = JSchema.Parse(@"{'allOf':[{}]}");
@@ -1195,7 +1192,7 @@ public class JSchemaTests
         Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'not':[]}"));
     }
 
-    [TestMethod]        
+    [TestMethod]
     public void Not_ParseAsEmptyObject_Match()
     {
         JSchema subject = JSchema.Parse(@"{'not':{}}");

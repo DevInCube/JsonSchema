@@ -5,7 +5,6 @@ namespace My.Json.Schema.Utilities;
 
 internal static class JTokenHelpers
 {
-
     public static bool IsString(this JToken t)
     {
         return

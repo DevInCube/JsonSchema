@@ -3,9 +3,8 @@ using System.Collections.Generic;
 
 namespace My.Json.Schema;
 
-internal class UriComparer : IEqualityComparer<Uri>
+internal sealed class UriComparer : IEqualityComparer<Uri>
 {
-
     public static readonly UriComparer Instance = new();
 
     private UriComparer() { }
@@ -17,14 +16,14 @@ internal class UriComparer : IEqualityComparer<Uri>
             return false;
         }
 
-        return !x.IsAbsoluteUri 
-            ? String.Equals(x.OriginalString, y.OriginalString, StringComparison.Ordinal) 
-            : String.Equals(x.Fragment, y.Fragment, StringComparison.Ordinal);
+        return !x.IsAbsoluteUri
+            ? string.Equals(x.OriginalString, y.OriginalString, StringComparison.Ordinal)
+            : string.Equals(x.Fragment, y.Fragment, StringComparison.Ordinal);
     }
 
     public int GetHashCode(Uri obj)
     {
-        if (!obj.IsAbsoluteUri || String.IsNullOrEmpty(obj.Fragment))
+        if (!obj.IsAbsoluteUri || string.IsNullOrEmpty(obj.Fragment))
         {
             return obj.GetHashCode();
         }

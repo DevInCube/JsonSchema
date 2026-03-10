@@ -12,13 +12,13 @@ public class JSchemaValidationReader
 {
     private const double SafePrecisionValue = 1e-7;
 
-    public event ValidationErrorHandler ErrorHandled;
+    public event EventHandler<ValidationEventArgs> ErrorHandled;
 
     private readonly JSchemaValidationReader _parentReader;
     private JSchema _schema;
     private JToken _data;
 
-    public JSchemaValidationReader(JSchemaValidationReader parentReader) 
+    public JSchemaValidationReader(JSchemaValidationReader parentReader)
     {
         _parentReader = parentReader;
     }
@@ -30,7 +30,7 @@ public class JSchemaValidationReader
         JSchemaValidationReader reader = _parentReader;
         while (reader != null)
         {
-            if (reader._data == data && 
+            if (reader._data == data &&
                 reader._schema == schema)
             {
                 return;
@@ -58,7 +58,7 @@ public class JSchemaValidationReader
         }
 
         ValidateType();
-        
+
         if (schema.AllOf.Count > 0)
         {
             ValidateAllOf();
@@ -89,6 +89,7 @@ public class JSchemaValidationReader
         {
             return;
         }
+
         RaiseValidationError("Data does not matches enum");
     }
 
@@ -102,55 +103,44 @@ public class JSchemaValidationReader
 
     private void ValidateOneOf()
     {
-        bool validOneOf = false;
-        foreach (JSchema oneOfSchema in _schema.OneOf)
+        var validSchemasCount = _schema.OneOf
+            .Count(x => _data.IsValid(x, this));
+        switch (validSchemasCount)
         {
-            if (_data.IsValid(oneOfSchema, this))
-            {
-                if (!validOneOf)
-                {
-                    validOneOf = true;
-                }
-                else
-                {
-                    RaiseValidationError("Data is valid against more than one schema");
-                    return;
-                }
-            }
-        }
-        if (!validOneOf)
-        {
-            RaiseValidationError("Data is not valid against any schema");
+            case 0:
+                RaiseValidationError("Data is not valid against any schema");
+                return;
+            case 1:
+                return;
+            default:
+                RaiseValidationError("Data is valid against more than one schema");
+                return;
         }
     }
 
     private void ValidateAnyOf()
     {
-        foreach (JSchema anyOfSchema in _schema.AnyOf)
+        var isAnyValid = _schema.AnyOf
+            .Any(x => _data.IsValid(x, this));
+        if (!isAnyValid)
         {
-            if (_data.IsValid(anyOfSchema, this))
-            {
-                return;
-            }
+            RaiseValidationError("Data is not valid against any schema");
         }
-
-        RaiseValidationError("Data is not valid against any schema");
     }
 
     private void ValidateAllOf()
     {
-        foreach (JSchema allOfSchema in _schema.AllOf)
+        var isAllValid = _schema.AllOf
+            .All(x => _data.IsValid(x, this));
+        if (!isAllValid)
         {
-            if (!_data.IsValid(allOfSchema, this))
-            {
-                RaiseValidationError("Data is not valid against all of schemas");
-            }
+            RaiseValidationError("Data is not valid against all of schemas");
         }
     }
 
     private void ValidateType()
     {
-        if (_data.Type == JTokenType.Null)
+        void ValidateNullType()
         {
             if (!(_schema.Type.HasFlag(JSchemaType.Null)
                 || _schema.Type == JSchemaType.None))
@@ -159,7 +149,7 @@ public class JSchemaValidationReader
             }
         }
 
-        if (_data.Type == JTokenType.Integer)
+        void ValidateIntegerType()
         {
             if (!(_schema.Type.HasFlag(JSchemaType.Integer)
                 || _schema.Type.HasFlag(JSchemaType.Number)
@@ -168,14 +158,15 @@ public class JSchemaValidationReader
                 RaiseValidationError("Unexpected integer value");
             }
 
-            double integer = Convert.ToDouble(_data);
+            double integer = Convert.ToDouble(_data, CultureInfo.InvariantCulture);
 
             ValidateInteger(integer);
         }
-        if (_data.Type == JTokenType.Float)
+
+        void ValidateFloatType()
         {
             if (!(_schema.Type.HasFlag(JSchemaType.Number)
-                 || _schema.Type == JSchemaType.None))
+                || _schema.Type == JSchemaType.None))
             {
                 RaiseValidationError("Unexpected number value");
             }
@@ -185,22 +176,22 @@ public class JSchemaValidationReader
             ValidateNumber(doubleValue);
         }
 
-        if (_data.Type == JTokenType.String
-            || _data.Type == JTokenType.Date)
+        void ValidateStringOrDateType()
         {
             if (!(_schema.Type.HasFlag(JSchemaType.String)
-                 || _schema.Type == JSchemaType.None))
+                || _schema.Type == JSchemaType.None))
             {
                 RaiseValidationError("Unexpected string value");
             }
 
-            var value = _data.Type == JTokenType.Date 
-                ? _data.Value<DateTime>().ToJsonString() 
+            var value = _data.Type == JTokenType.Date
+                ? _data.Value<DateTime>().ToJsonString()
                 : _data.Value<string>();
 
             ValidateString(value);
         }
-        if (_data.Type == JTokenType.Boolean)
+
+        void ValidateBooleanType()
         {
             if (!(_schema.Type.HasFlag(JSchemaType.Boolean)
                  || _schema.Type == JSchemaType.None))
@@ -208,7 +199,8 @@ public class JSchemaValidationReader
                 RaiseValidationError("Unexpected boolean value");
             }
         }
-        if (_data.Type == JTokenType.Array)
+
+        void ValidateArrayType()
         {
             if (!(_schema.Type.HasFlag(JSchemaType.Array)
                 || _schema.Type == JSchemaType.None))
@@ -220,7 +212,8 @@ public class JSchemaValidationReader
 
             ValidateArray(array);
         }
-        if (_data.Type == JTokenType.Object)
+
+        void ValidateObjectType()
         {
             if (!(_schema.Type.HasFlag(JSchemaType.Object)
                || _schema.Type == JSchemaType.None))
@@ -231,7 +224,43 @@ public class JSchemaValidationReader
             JObject obj = _data as JObject;
 
             ValidateObject(obj);
-        }            
+        }
+
+        if (_data.Type == JTokenType.Null)
+        {
+            ValidateNullType();
+        }
+
+        if (_data.Type == JTokenType.Integer)
+        {
+            ValidateIntegerType();
+        }
+
+        if (_data.Type == JTokenType.Float)
+        {
+            ValidateFloatType();
+        }
+
+        if (_data.Type == JTokenType.String
+            || _data.Type == JTokenType.Date)
+        {
+            ValidateStringOrDateType();
+        }
+
+        if (_data.Type == JTokenType.Boolean)
+        {
+            ValidateBooleanType();
+        }
+
+        if (_data.Type == JTokenType.Array)
+        {
+            ValidateArrayType();
+        }
+
+        if (_data.Type == JTokenType.Object)
+        {
+            ValidateObjectType();
+        }
     }
 
     private void ValidateString(string value)
@@ -265,100 +294,58 @@ public class JSchemaValidationReader
 
     private void ValidateStringFormat(string value, string format)
     {
-        switch (format)
+        static string GetValidationError(string value, string format)
         {
-            case ("date-time"):
-                {
-                    if(!DateTimeHelpers.IsValidDateTimeFormat(value))
-                    {
-                        RaiseValidationError("String is not in correct date-time format");
-                    }
+            return format switch
+            {
+                "date-time" when !DateTimeHelpers.IsValidDateTimeFormat(value) => "String is not in correct date-time format",
+                "email" when !EMailHelpers.IsValidEmail(value) => "String is not in correct email format",
+                "hostname" when !StringHelpers.IsValidHostName(value) => "String is not in correct hostname format",
+                "ipv4" when !StringHelpers.IsValidIPv4(value) => "String is not in correct ipv4 format.",
+                "ipv6" when Uri.CheckHostName(value) != UriHostNameType.IPv6 => "String is not in correct ipv6 format.",
+                "uri" when !Uri.IsWellFormedUriString(value, UriKind.Absolute) => "String is not in correct uri format.",
+                _ => null,
+            };
+        }
 
-                    break;
-                }
-            case ("email"):
-                {
-                    if (!EMailHelpers.IsValidEmail(value))
-                    {
-                        RaiseValidationError("String is not in correct email format");
-                    }
-
-                    break;
-                }
-            case ("hostname"):
-                {
-                    if (!StringHelpers.IsValidHostName(value))
-                    {
-                        RaiseValidationError("String is not in correct hostname format");
-                    }
-
-                    break;
-                }
-            case ("ipv4"):
-                {
-                    if (!StringHelpers.IsValidIPv4(value))
-                    {
-                        RaiseValidationError("String is not in correct ipv4 format.");
-                    }
-
-                    break;
-                }
-            case ("ipv6"):
-                {
-                    if (Uri.CheckHostName(value) != UriHostNameType.IPv6)
-                    {
-                        RaiseValidationError("String is not in correct ipv6 format.");
-                    }
-
-                    break;
-                }
-            case ("uri"):
-                {
-                    if (!Uri.IsWellFormedUriString(value, UriKind.Absolute))
-                    {
-                        RaiseValidationError("String is not in correct uri format.");
-                    }
-
-                    break;
-                }
+        var validationError = GetValidationError(value, format);
+        if (!string.IsNullOrEmpty(validationError))
+        {
+            RaiseValidationError(validationError);
         }
     }
 
     private void ValidateNumber(double doubleValue)
     {
-        if (_schema.Minimum != null)
+        void ValidateMinimum()
         {
             if (doubleValue < _schema.Minimum)
             {
                 RaiseValidationError("Value is less than minimum");
             }
 
-            if (_schema.ExclusiveMinimum)
+            if (_schema.ExclusiveMinimum
+                && Math.Abs(doubleValue - _schema.Minimum.Value) <= SafePrecisionValue)
             {
-                if (doubleValue == _schema.Minimum)
-                {
-                    RaiseValidationError("Value should not be equal to minimum");
-                }
+                RaiseValidationError("Value should not be equal to minimum");
             }
         }
 
-        if (_schema.Maximum != null)
+        void ValidateMaximum()
         {
             if (doubleValue > _schema.Maximum)
             {
                 RaiseValidationError("Value is greater than maximum");
             }
 
-            if (_schema.ExclusiveMaximum)
+            if (_schema.ExclusiveMaximum
+                && Math.Abs(doubleValue - _schema.Maximum.Value) <= SafePrecisionValue)
             {
-                if (doubleValue == _schema.Maximum)
-                {
-                    RaiseValidationError("Value should not be equal to maximum");
-                }
+                RaiseValidationError("Value should not be equal to maximum");
             }
         }
 
-        if (_schema.MultipleOf != null)
+        void ValidateMultipleOf()
         {
             try
             {
@@ -372,10 +359,25 @@ public class JSchemaValidationReader
                 RaiseValidationError("Value overflow");
             }
         }
+
+        if (_schema.Minimum != null)
+        {
+            ValidateMinimum();
+        }
+
+        if (_schema.Maximum != null)
+        {
+            ValidateMaximum();
+        }
+
+        if (_schema.MultipleOf != null)
+        {
+            ValidateMultipleOf();
+        }
     }
 
     private void ValidateArray(JArray array)
-    {            
+    {
         if (_schema.UniqueItems)
         {
             ValidateUniqueItems(array);
@@ -419,8 +421,8 @@ public class JSchemaValidationReader
             for (int i = 0; i < array.Count; i++)
             {
                 JToken item = array[i];
-                var itemSchema = i < _schema.ItemsArray.Count 
-                    ? _schema.ItemsArray[i] 
+                var itemSchema = i < _schema.ItemsArray.Count
+                    ? _schema.ItemsArray[i]
                     : _schema.AdditionalItems;
 
                 if (!item.IsValid(itemSchema, out IList<ValidationError> childErrors, this))
@@ -444,8 +446,9 @@ public class JSchemaValidationReader
                     return;
                 }
             }
+
             uniques.Add(item);
-        }            
+        }
     }
 
     private void ValidateObject(JObject obj)
@@ -461,6 +464,7 @@ public class JSchemaValidationReader
                     break;
                 }
             }
+
             if (!exists)
             {
                 RaiseValidationError("Required property is missing");
@@ -487,9 +491,9 @@ public class JSchemaValidationReader
         {
             IList<JSchema> schemas = [];
             string propName = property.Name;
-            if (_schema.Properties.ContainsKey(propName))
+            if (_schema.Properties.TryGetValue(propName, out JSchema value))
             {
-                schemas.Add(_schema.Properties[propName]);
+                schemas.Add(value);
             }
 
             foreach (var patternPair in _schema.PatternProperties)
@@ -524,12 +528,10 @@ public class JSchemaValidationReader
         {
             foreach (var pair in _schema.SchemaDependencies)
             {
-                if (obj.TryGetValue(pair.Key, out _))
+                if (obj.TryGetValue(pair.Key, out _)
+                    && !obj.IsValid(pair.Value, this))
                 {
-                    if (!obj.IsValid(pair.Value, this))
-                    {
-                        RaiseValidationError("Schema dependency is not valid");
-                    }
+                    RaiseValidationError("Schema dependency is not valid");
                 }
             }
         }
@@ -538,15 +540,17 @@ public class JSchemaValidationReader
         {
             foreach (var pair in _schema.PropertyDependencies)
             {
-                if (obj.TryGetValue(pair.Key, out JToken token))
+                if (!obj.TryGetValue(pair.Key, out JToken token))
                 {
-                    IList<string> propertyset = pair.Value;
-                    foreach (string propertyName in propertyset)
+                    continue;
+                }
+
+                IList<string> propertyset = pair.Value;
+                foreach (string propertyName in propertyset)
+                {
+                    if (!obj.TryGetValue(propertyName, out token))
                     {
-                        if (!obj.TryGetValue(propertyName, out token))
-                        {
-                            RaiseValidationError("Property dependency is not valid");
-                        }
+                        RaiseValidationError("Property dependency is not valid");
                     }
                 }
             }
@@ -564,12 +568,13 @@ public class JSchemaValidationReader
 
             if (_schema.ExclusiveMinimum)
             {
-                if (integer == _schema.Minimum)
+                if (Math.Abs(integer - _schema.Minimum.Value) > SafePrecisionValue)
                 {
                     RaiseValidationError("Value should not be equal to minimum");
                 }
             }
         }
+
         if (_schema.Maximum != null)
         {
             if (integer > _schema.Maximum)
@@ -579,12 +584,13 @@ public class JSchemaValidationReader
 
             if (_schema.ExclusiveMaximum)
             {
-                if (integer == _schema.Maximum)
+                if (Math.Abs(integer - _schema.Maximum.Value) > SafePrecisionValue)
                 {
                     RaiseValidationError("Value should not be equal to maximum");
                 }
             }
         }
+
         if (_schema.MultipleOf != null)
         {
             if (Math.Abs(integer) > SafePrecisionValue)
@@ -595,25 +601,22 @@ public class JSchemaValidationReader
                 }
             }
         }
-    }       
+    }
 
     private void RaiseValidationError(string message, IList<ValidationError> childErrors = null)
     {
-        if (String.IsNullOrWhiteSpace(message))
+        if (string.IsNullOrWhiteSpace(message))
         {
             throw new ArgumentNullException(nameof(message));
         }
 
-        ValidationErrorHandler handler = ErrorHandled;
-        if (handler != null)
-        {
-            ValidationError error = new(message, _data) { ChildErrors = childErrors };
-            ValidationEventArgs args = new(error);
-            ErrorHandled?.Invoke(this, args);
-        }
-        else
+        if (ErrorHandled == null)
         {
             throw new JSchemaException(message);
         }
+
+        ValidationError error = new(message, _data) { ChildErrors = childErrors };
+        ValidationEventArgs args = new(error);
+        ErrorHandled.Invoke(this, args);
     }
 }

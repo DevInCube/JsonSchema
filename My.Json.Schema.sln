@@ -1,13 +1,20 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.40629.0
+# Visual Studio Version 18
+VisualStudioVersion = 18.2.11415.280 d18.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "My.Json.Schema", "My.Json.Schema\My.Json.Schema.csproj", "{F8792C62-C58F-4FC8-A142-98D74DBDC24F}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "My.Json.Schema.Tests", "My.Json.Schema.Tests\My.Json.Schema.Tests.csproj", "{62095617-9349-48D1-A0F0-1FB871F732C2}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "My.Json.Schema.TestConsole", "My.Json.Schema.TestConsole\My.Json.Schema.TestConsole.csproj", "{CE261A33-AE3E-49FF-A294-679E8782D6E0}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".Solution Items", ".Solution Items", "{5575BB71-BDD1-4527-A3E9-1E406E8CA06D}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+		Directory.Build.props = Directory.Build.props
+		spellchecking_exclusions.dic = spellchecking_exclusions.dic
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -30,5 +37,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {92900B84-0BB9-46EE-A7F1-4155C2BD01B2}
 	EndGlobalSection
 EndGlobal

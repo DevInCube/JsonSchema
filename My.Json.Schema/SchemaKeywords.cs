@@ -20,12 +20,12 @@ public static class SchemaKeywords
     public const string Pattern = "pattern";
     public const string MaximumLength = "maxLength";
     public const string MinimumLength = "minLength";
-    public const string Enum = "enum";        
+    public const string Enum = "enum";
     public const string Title = "title";
     public const string Description = "description";
     public const string Format = "format";
-    public const string Default = "default";                
-    public const string MultipleOf = "multipleOf";        
+    public const string Default = "default";
+    public const string MultipleOf = "multipleOf";
     public const string Id = "id";
     public const string UniqueItems = "uniqueItems";
     public const string MinimumProperties = "minProperties";
