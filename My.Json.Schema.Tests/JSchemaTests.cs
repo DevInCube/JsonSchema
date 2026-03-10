@@ -62,13 +62,13 @@ public class JSchemaTests
     [TestMethod]
     public void JSchema_ParseNull_ThrowsArgumentNullException()
     {
-        Assert.ThrowsException<ArgumentNullException>(() => _ = JSchema.Parse(null));
+        Assert.Throws<ArgumentNullException>(() => _ = JSchema.Parse(null));
     }
 
     [TestMethod]
     public void JSchema_ParseEmptyString_ThrowsJSchemaException()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(""));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(""));
     }
 
     [TestMethod]
@@ -98,13 +98,13 @@ public class JSchemaTests
     [TestMethod]
     public void Id_SetAsObject_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{id:{}}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{id:{}}"));
     }
 
     [TestMethod]
     public void Id_SetAsEmptyFragment_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() =>
+        Assert.Throws<JSchemaException>(() =>
         {
             _ = new JSchema()
             {
@@ -175,7 +175,7 @@ public class JSchemaTests
     [TestMethod]
     public void JSchema_ParseWithObjectTitle_ThrowsJSchemaValidationError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'title' : {}}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'title' : {}}"));
     }
     #endregion
     #region description_tests
@@ -205,7 +205,7 @@ public class JSchemaTests
     [TestMethod]
     public void JSchema_ParseWithObjectDescription_ThrowsJSchemaValidationError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'description' : {}}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'description' : {}}"));
     }
     #endregion
     #region default_tests
@@ -240,7 +240,7 @@ public class JSchemaTests
     [TestMethod]
     public void Type_SetStringNotAType_Throws()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'type':'test'}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'type':'test'}"));
     }
 
     [TestMethod]
@@ -253,13 +253,13 @@ public class JSchemaTests
     [TestMethod]
     public void Type_SetEmptyArray_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'type':[]}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'type':[]}"));
     }
 
     [TestMethod]
     public void Type_SetNotUniqueArray_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'type':['object','object']}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'type':['object','object']}"));
     }
 
     [TestMethod]
@@ -277,13 +277,13 @@ public class JSchemaTests
     [TestMethod]
     public void Ref_SetInvalidReferenceToken_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'$ref':{}}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'$ref':{}}"));
     }
 
     [TestMethod]
     public void Ref_SetEmptyReference_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'$ref':''}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'$ref':''}"));
     }
 
     [TestMethod]
@@ -314,7 +314,7 @@ public class JSchemaTests
     [TestMethod]
     public void Property_SetExternalReferenceWithoutResolver_ThrowError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{
     'id' : 'http://test.com/schema#',
     'properties' : { 'refTest' : {'$ref' : 'core#/definitions/test'}},
 }"));
@@ -323,7 +323,7 @@ public class JSchemaTests
     [TestMethod]
     public void Property_SetExternalReferenceWithoutRootId_ThrowError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{
     'properties' : { 'refTest' : {'$ref' : 'core#/definitions/test'}},
 }"));
     }
@@ -430,7 +430,7 @@ public class JSchemaTests
         }
     }
 }";
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(shStr));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(shStr));
     }
 
     [TestMethod]
@@ -460,7 +460,7 @@ public class JSchemaTests
         string shStr = @"{    
     'not': { '$ref': '#/inner' },    
 }";
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(shStr));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(shStr));
     }
 
     [TestMethod]
@@ -533,19 +533,19 @@ public class JSchemaTests
     [TestMethod]
     public void MultipleOf_SetAsString_ThrowError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'multipleOf':'string'}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'multipleOf':'string'}"));
     }
 
     [TestMethod]
     public void MultipleOf_ParseAsZero_ThrowError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'multipleOf':0}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'multipleOf':0}"));
     }
 
     [TestMethod]
     public void MultipleOf_SetAsZero_ThrowError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = new JSchema()
+        Assert.Throws<JSchemaException>(() => _ = new JSchema()
         {
             MultipleOf = 0
         });
@@ -554,13 +554,13 @@ public class JSchemaTests
     [TestMethod]
     public void MultipleOf_ParseAsNegativeNumber_ThrowError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'multipleOf':-1}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'multipleOf':-1}"));
     }
 
     [TestMethod]
     public void MultipleOf_SetAsNegativeNumber_ThrowError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = new JSchema() { MultipleOf = -2 });
+        Assert.Throws<JSchemaException>(() => _ = new JSchema() { MultipleOf = -2 });
     }
 
     [TestMethod]
@@ -593,7 +593,7 @@ public class JSchemaTests
     [TestMethod]
     public void Maximum_ParseAsString_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'maximum':'string'}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'maximum':'string'}"));
     }
 
     [TestMethod]
@@ -607,7 +607,7 @@ public class JSchemaTests
     [TestMethod]
     public void ExclusiveMaximum_ParseIsSetButNoMaximum_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'exclusiveMaximum':true}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'exclusiveMaximum':true}"));
     }
 
     [TestMethod]
@@ -639,7 +639,7 @@ public class JSchemaTests
     [TestMethod]
     public void Minimum_ParseAsString_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'minimum':'string'}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'minimum':'string'}"));
     }
 
     [TestMethod]
@@ -653,7 +653,7 @@ public class JSchemaTests
     [TestMethod]
     public void ExclusiveMinimum_IsSetButNoMinimum_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'exclusiveMinimum':5}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'exclusiveMinimum':5}"));
     }
     #endregion
 
@@ -670,19 +670,19 @@ public class JSchemaTests
     [TestMethod]
     public void MaxLength_ParseAsNumber_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'maxLength':2.1}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'maxLength':2.1}"));
     }
 
     [TestMethod]
     public void MaxLength_ParseAsNegativeInteger_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'maxLength':-1}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'maxLength':-1}"));
     }
 
     [TestMethod]
     public void MaxLength_SetAsNegativeInteger_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = new JSchema()
+        Assert.Throws<JSchemaException>(() => _ = new JSchema()
         {
             MaxLength = -1
         });
@@ -691,7 +691,7 @@ public class JSchemaTests
     [TestMethod]
     public void MaxLength_ParseAsString_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'maxLength':'string'}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'maxLength':'string'}"));
     }
     #endregion
 
@@ -708,19 +708,19 @@ public class JSchemaTests
     [TestMethod]
     public void MinLength_ParseAsNumber_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'minLength':2.1}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'minLength':2.1}"));
     }
 
     [TestMethod]
     public void MinLength_ParseAsNegativeInteger_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'minLength':-1}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'minLength':-1}"));
     }
 
     [TestMethod]
     public void MinLength_SetAsNegativeInteger_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = new JSchema()
+        Assert.Throws<JSchemaException>(() => _ = new JSchema()
         {
             MinLength = -1
         });
@@ -729,7 +729,7 @@ public class JSchemaTests
     [TestMethod]
     public void MinLength_ParseAsString_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'minLength':'string'}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'minLength':'string'}"));
     }
     #endregion
 
@@ -745,13 +745,13 @@ public class JSchemaTests
     [TestMethod]
     public void Pattern_ParseAsNumber_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'pattern':2.1}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'pattern':2.1}"));
     }
 
     [TestMethod]
     public void Pattern_SetInvalidRegex_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = new JSchema()
+        Assert.Throws<JSchemaException>(() => _ = new JSchema()
         {
             Pattern = "*"
         });
@@ -760,7 +760,7 @@ public class JSchemaTests
     [TestMethod]
     public void Pattern_SetEmptyRegex_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = new JSchema()
+        Assert.Throws<JSchemaException>(() => _ = new JSchema()
         {
             Pattern = ""
         });
@@ -780,19 +780,19 @@ public class JSchemaTests
     [TestMethod]
     public void MinItems_ParseAsNumber_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'minItems':2.1}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'minItems':2.1}"));
     }
 
     [TestMethod]
     public void MinItems_ParseAsNegativeInteger_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'minItems':-1}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'minItems':-1}"));
     }
 
     [TestMethod]
     public void MinItems_SetAsNegativeInteger_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = new JSchema()
+        Assert.Throws<JSchemaException>(() => _ = new JSchema()
         {
             MinItems = -1
         });
@@ -801,7 +801,7 @@ public class JSchemaTests
     [TestMethod]
     public void MinItems_ParseAsString_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'minItems':'string'}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'minItems':'string'}"));
     }
     #endregion
 
@@ -818,19 +818,19 @@ public class JSchemaTests
     [TestMethod]
     public void MaxItems_ParseAsNumber_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'maxItems':2.1}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'maxItems':2.1}"));
     }
 
     [TestMethod]
     public void MaxItems_ParseAsNegativeInteger_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'maxItems':-1}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'maxItems':-1}"));
     }
 
     [TestMethod]
     public void MaxItems_SetAsNegativeInteger_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = new JSchema()
+        Assert.Throws<JSchemaException>(() => _ = new JSchema()
         {
             MaxItems = -1
         });
@@ -839,7 +839,7 @@ public class JSchemaTests
     [TestMethod]
     public void MaxItems_ParseAsString_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'maxItems':'string'}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'maxItems':'string'}"));
     }
     #endregion
 
@@ -863,19 +863,19 @@ public class JSchemaTests
     [TestMethod]
     public void MinProperties_ParseAsNumber_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'minProperties':2.1}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'minProperties':2.1}"));
     }
 
     [TestMethod]
     public void MinProperties_ParseAsNegativeInteger_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'minProperties':-1}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'minProperties':-1}"));
     }
 
     [TestMethod]
     public void MinProperties_SetAsNegativeInteger_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = new JSchema()
+        Assert.Throws<JSchemaException>(() => _ = new JSchema()
         {
             MinProperties = -1
         });
@@ -884,7 +884,7 @@ public class JSchemaTests
     [TestMethod]
     public void MinProperties_ParseAsString_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'minProperties':'string'}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'minProperties':'string'}"));
     }
     #endregion
 
@@ -908,19 +908,19 @@ public class JSchemaTests
     [TestMethod]
     public void MaxProperties_ParseAsNumber_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'maxProperties':2.1}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'maxProperties':2.1}"));
     }
 
     [TestMethod]
     public void MaxProperties_ParseAsNegativeInteger_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'maxProperties':-1}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'maxProperties':-1}"));
     }
 
     [TestMethod]
     public void MaxProperties_SetAsNegativeInteger_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = new JSchema()
+        Assert.Throws<JSchemaException>(() => _ = new JSchema()
         {
             MaxProperties = -1
         });
@@ -929,7 +929,7 @@ public class JSchemaTests
     [TestMethod]
     public void MaxProperties_ParseAsString_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'maxProperties':'string'}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'maxProperties':'string'}"));
     }
     #endregion
 
@@ -945,7 +945,7 @@ public class JSchemaTests
     [TestMethod]
     public void UniqueItems_ParseAsString_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'uniqueItems':'string'}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'uniqueItems':'string'}"));
     }
 
     [TestMethod]
@@ -961,7 +961,7 @@ public class JSchemaTests
     [TestMethod]
     public void Required_ParseAsString_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'required':'string'}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'required':'string'}"));
     }
 
     [TestMethod]
@@ -976,19 +976,19 @@ public class JSchemaTests
     [TestMethod]
     public void Required_ParseNotUniqueStringArray_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{required:['string','string']}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{required:['string','string']}"));
     }
 
     [TestMethod]
     public void Required_ParseIntegerArray_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{required:[0]}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{required:[0]}"));
     }
 
     [TestMethod]
     public void Required_ParseEmptyArray_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{required:[]}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{required:[]}"));
     }
     #endregion
 
@@ -996,7 +996,7 @@ public class JSchemaTests
     [TestMethod]
     public void Enum_ParseAsString_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'enum':'string'}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'enum':'string'}"));
     }
 
     [TestMethod]
@@ -1021,7 +1021,7 @@ public class JSchemaTests
     [TestMethod]
     public void Enum_ParseNotUniqueStringArray_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{enum:['string','string']}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{enum:['string','string']}"));
     }
 
     [TestMethod]
@@ -1038,7 +1038,7 @@ public class JSchemaTests
     [TestMethod]
     public void Enum_ParseEmptyArray_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{enum:[]}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{enum:[]}"));
     }
     #endregion
 
@@ -1105,19 +1105,19 @@ public class JSchemaTests
     [TestMethod]
     public void AllOf_ParseAsObject_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'allOf':{}}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'allOf':{}}"));
     }
 
     [TestMethod]
     public void AllOf_ParseAsEmptyArray_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'allOf':[]}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'allOf':[]}"));
     }
 
     [TestMethod]
     public void AllOf_ParseAsOneItemStringArray_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'allOf':['string']}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'allOf':['string']}"));
     }
 
     [TestMethod]
@@ -1133,19 +1133,19 @@ public class JSchemaTests
     [TestMethod]
     public void AnyOf_ParseAsObject_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'anyOf':{}}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'anyOf':{}}"));
     }
 
     [TestMethod]
     public void AnyOf_ParseAsEmptyArray_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'anyOf':[]}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'anyOf':[]}"));
     }
 
     [TestMethod]
     public void AnyOf_ParseAsOneItemStringArray_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'anyOf':['string']}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'anyOf':['string']}"));
     }
 
     [TestMethod]
@@ -1161,19 +1161,19 @@ public class JSchemaTests
     [TestMethod]
     public void OneOf_ParseAsObject_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'oneOf':{}}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'oneOf':{}}"));
     }
 
     [TestMethod]
     public void OneOf_ParseAsEmptyArray_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'oneOf':[]}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'oneOf':[]}"));
     }
 
     [TestMethod]
     public void OneOf_ParseAsOneItemStringArray_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'oneOf':['string']}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'oneOf':['string']}"));
     }
 
     [TestMethod]
@@ -1189,7 +1189,7 @@ public class JSchemaTests
     [TestMethod]
     public void Not_ParseAsArray_ThrowsError()
     {
-        Assert.ThrowsException<JSchemaException>(() => _ = JSchema.Parse(@"{'not':[]}"));
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{'not':[]}"));
     }
 
     [TestMethod]
