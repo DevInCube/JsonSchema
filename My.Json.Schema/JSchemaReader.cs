@@ -101,7 +101,7 @@ public class JSchemaReader
             if (rootObject.TryGetValue(SchemaKeywords.Id, out JToken t2))
             {
                 rootId = t2.Value<string>().Split('#')[0];
-                if (rootId.Equals(fullHost))
+                if (rootId.Equals(fullHost, StringComparison.Ordinal))
                 {
                     return ResolveInternalReference(path, rootObject);
                 }
@@ -133,6 +133,18 @@ public class JSchemaReader
         }
         else
         {
+            // Try to resolve internal schema by reference.
+            JObject rootObject = (JObject)jObject.GetRootParent();
+            if (rootObject.TryGetValue(SchemaKeywords.Id, out JToken rootIdToken))
+            {
+                var rootId = rootIdToken.Value<string>().Split('#')[0];
+                var internalReference = new Uri(CombineUri(rootId, refStr));
+                if (_resolutionScopes.TryGetValue(internalReference, out JSchema internalSchema))
+                {
+                    return internalSchema;
+                }
+            }
+
             Uri refStrUri = null;
             try
             {
@@ -166,8 +178,24 @@ public class JSchemaReader
                 ? t2.Value<string>()
                 : string.Empty;
 
-            return ResolveReference(string.Concat(parentId, refStr), parent);
+            return ResolveReference(CombineUri(parentId, refStr), parent);
         }
+    }
+
+    private static string CombineUri(string parentId, string refStr)
+    {
+        if (!Uri.TryCreate(parentId, UriKind.RelativeOrAbsolute, out var parentUri))
+        {
+            throw new InvalidDataException("invalid URI string");
+        }
+
+        if (!parentUri.IsAbsoluteUri)
+        {
+            return string.Concat(parentId, refStr);
+        }
+
+        var internalReference = new Uri(parentUri, refStr);
+        return internalReference.OriginalString;
     }
 
     private JSchema ResolveInternalReference(string path, JObject rootObject)
