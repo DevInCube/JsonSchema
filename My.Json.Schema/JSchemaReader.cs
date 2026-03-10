@@ -172,6 +172,16 @@ public class JSchemaReader
 
     private JSchema ResolveInternalReference(string path, JObject rootObject)
     {
+        static string UnEscapePropName(string propName)
+        {
+            string unescapedPropName = propName
+                .Replace("~1", "/", StringComparison.Ordinal)
+                .Replace("~0", "~", StringComparison.Ordinal)
+                .Replace("%25", "%", StringComparison.Ordinal)
+                .Replace("%22", "\"", StringComparison.Ordinal);
+            return unescapedPropName;
+        }
+
         string[] props = !string.IsNullOrEmpty(path)
             ? path.TrimStart('/').Split('/')
             : [];
@@ -184,11 +194,7 @@ public class JSchemaReader
 
             if (token is JObject obj)
             {
-                string unescapedPropName = propName
-                    .Replace("~1", "/")
-                    .Replace("~0", "~")
-                    .Replace("%25", "%")
-                    .Replace("%22", "\"");
+                string unescapedPropName = UnEscapePropName(propName);
                 if (!obj.TryGetValue(unescapedPropName, out propVal))
                 {
                     throw new JSchemaException($"Missing property '{propName}'.", obj.Path, obj);
