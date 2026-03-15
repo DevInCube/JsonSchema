@@ -7,23 +7,29 @@ namespace My.Json.Schema.TestConsole;
 
 internal sealed class TestContext
 {
-    public string Description { get; private set; }
-    public JObject Schema { get; private set; }
-    public IList<TestCase> Cases { get; private set; }
+    public TestPackage Package { get; init; }
 
-    internal static TestContext Create(JObject testObject)
+    public string Description { get; init; }
+
+    public JObject Schema { get; init; }
+
+    public List<TestCase> Cases { get; init; } = [];
+
+    internal static TestContext Create(TestPackage package, JObject testObject)
     {
         ArgumentNullException.ThrowIfNull(testObject);
 
-        return new TestContext
+        TestContext context = new()
         {
+            Package = package,
             Description = testObject.GetValue("description").Value<string>(),
             Schema = (JObject)testObject.GetValue("schema"),
-            Cases = ((JArray)testObject.GetValue("tests"))
-                .Children<JObject>()
-                .Select(TestCase.Create)
-                .ToList()
         };
+        var cases = ((JArray)testObject.GetValue("tests"))
+            .Children<JObject>()
+            .Select((x, i) => TestCase.Create(context, x, i));
+        context.Cases.AddRange(cases);
+        return context;
     }
 }
 

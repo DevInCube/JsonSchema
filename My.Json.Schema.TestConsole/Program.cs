@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 
 namespace My.Json.Schema.TestConsole;
 
@@ -27,6 +26,9 @@ internal static class Program
         string testsOptionalDraftDir = Path.Combine(testsDraftDir, "optional");
         var draftOptionalTests = LoadTests(testsOptionalDraftDir);
 
+        var testCase = GetTestCase(draftTests, "refRemote.json", "root ref in remote ref", "object is invalid");
+        RunTest(testCase, resolver);
+
         Console.WriteLine("MAIN TESTS ====================");
         RunTests(draftTests, resolver);
         Console.WriteLine(Environment.NewLine + "OPTIONAL TESTS ====================");
@@ -34,86 +36,102 @@ internal static class Program
         Console.ReadKey(true);
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types")]
+    private static TestCase GetTestCase(IEnumerable<TestPackage> packages, string packageName, string contextName, string caseName)
+    {
+        TestPackage package = packages
+            .FirstOrDefault(x => x.Name.Equals(packageName, StringComparison.Ordinal))
+            ?? throw new ArgumentException($"package {packageName} is missing", nameof(packageName));
+        TestContext context = package.Tests
+            .FirstOrDefault(x => x.Description.Equals(contextName, StringComparison.Ordinal))
+            ?? throw new ArgumentException($"context {contextName} is missing in package {packageName}", nameof(contextName));
+        TestCase test = context.Cases
+            .FirstOrDefault(x => x.Description.Equals(caseName, StringComparison.Ordinal))
+            ?? throw new ArgumentException($"test case {caseName} is missing in context {contextName} of package {packageName}", nameof(caseName));
+        return test;
+    }
+
+    private static void RunTest(TestCase testCase, JSchemaResolver resolver)
+    {
+        using TestExecutionContext executionContext = new();
+        executionContext.Log($"Package: {testCase.Context.Package.Name}");
+        executionContext.Log($"  Test context: {testCase.Context.Description}:");
+        RunTestCase(testCase, resolver, executionContext);
+    }
+
     private static void RunTests(IEnumerable<TestPackage> draftTests, JSchemaResolver resolver)
     {
-        int successCount = 0;
-        int failedCount = 0;
-        int exceptionCount = 0;
+        using TestExecutionContext rootExecutionContext = new();
         foreach (TestPackage testPack in draftTests)
         {
-            Console.WriteLine($"{testPack.Name}:{Environment.NewLine}");
-            int testSuccessCount = 0;
-            int testFailedCount = 0;
-            int testExceptionCount = 0;
-            foreach (TestContext test in testPack.Tests)
+            rootExecutionContext.Log($"{testPack.Name}:{Environment.NewLine}");
+            using TestExecutionContext packExecutionContext = new(rootExecutionContext);
+            foreach (TestContext testContext in testPack.Tests)
             {
-                int caseFailedCount = 0;
-                int caseExceptionCount = 0;
-                StringBuilder builder = new();
-                builder.AppendLine($"Test: {test.Description}, {test.Cases.Count} test cases");
-                foreach ((TestCase testCase, int index) in test.Cases.Select((x, i) => (x, i)))
+                using TestExecutionContext testExecutionContext = new(packExecutionContext);
+                testExecutionContext.Log($"Test context: {testContext.Description}, {testContext.Cases.Count} test cases");
+                foreach (TestCase testCase in testContext.Cases)
                 {
-                    JSchema schema;
-                    try
-                    {
-                        schema = JSchema.Parse(test.Schema.ToString(), resolver);
-                    }
-                    catch (Exception e)
-                    {
-                        exceptionCount++;
-                        testExceptionCount++;
-                        caseExceptionCount++;
-                        builder.AppendLine($"\t\tException: {e.Message}");
-                        continue;
-                    }
-
-                    bool result = false;
-                    try
-                    {
-                        result = testCase.Data.IsValid(schema);
-                    }
-                    catch (Exception e)
-                    {
-                        exceptionCount++;
-                        testExceptionCount++;
-                        caseExceptionCount++;
-                        builder.AppendLine($"\t\tException: {e.Message}");
-                        continue;
-                    }
-
-                    bool success = result == testCase.Valid;
-
-                    builder.Append($"\tCase {index + 1}: {testCase.Description} ");
-                    var statusString = success ? "ok" : "FAILED";
-                    builder.AppendLine($"\t\tStatus: {statusString}");
-                    if (success)
-                    {
-                        successCount++;
-                        testSuccessCount++;
-                    }
-                    else
-                    {
-                        failedCount++;
-                        testFailedCount++;
-                        caseFailedCount++;
-                    }
+                    using TestExecutionContext testCaseExecutionContext = new(testExecutionContext);
+                    RunTestCase(testCase, resolver, testCaseExecutionContext);
                 }
 
-                if (caseFailedCount > 0 || caseExceptionCount > 0)
+                if (testExecutionContext.FailedCount == 0 && testExecutionContext.ExceptionCount == 0)
                 {
-                    Console.WriteLine(builder.ToString());
+                    testExecutionContext.ClearLog();
                 }
             }
 
-            int totalCount = testSuccessCount + testFailedCount + testExceptionCount;
-            Console.WriteLine($"[{testSuccessCount}/{totalCount}]---------------------------");
+            packExecutionContext.Log($"[{packExecutionContext.SuccessCount}/{packExecutionContext.Total}]---------------------------");
         }
 
-        Console.WriteLine("===========================");
-        Console.WriteLine($"SUCCESS: \t{successCount}");
-        Console.WriteLine($"FAILED: \t{failedCount}");
-        Console.WriteLine($"EXCEPTIONS: \t{exceptionCount}");
+        rootExecutionContext.Log("===========================");
+        rootExecutionContext.Log($"SUCCESS: \t{rootExecutionContext.SuccessCount}");
+        rootExecutionContext.Log($"FAILED: \t{rootExecutionContext.FailedCount}");
+        rootExecutionContext.Log($"EXCEPTIONS: \t{rootExecutionContext.ExceptionCount}");
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types")]
+    private static void RunTestCase(TestCase testCase, JSchemaResolver resolver, TestExecutionContext context)
+    {
+        JSchema schema;
+        try
+        {
+            schema = JSchema.Parse(testCase.Context.Schema.ToString(), resolver);
+        }
+        catch (Exception e)
+        {
+            context.Exception(e);
+            context.Log(e);
+            return;
+        }
+
+        bool result = false;
+        try
+        {
+            result = testCase.Data.IsValid(schema);
+        }
+        catch (Exception e)
+        {
+            context.Exception(e);
+            context.Log(e);
+            return;
+        }
+
+        bool success = result == testCase.Valid;
+        if (!success)
+        {
+            var statusString = success ? "ok" : "FAILED";
+            context.Log($"\tCase {testCase.Index + 1}: {testCase.Description} \t\tStatus: {statusString}");
+        }
+
+        if (success)
+        {
+            context.Success();
+        }
+        else
+        {
+            context.Fail();
+        }
     }
 
     private static IEnumerable<TestPackage> LoadTests(string testsDirPath)
@@ -122,24 +140,9 @@ internal static class Program
         FileInfo[] testFiles = testsDir.GetFiles();
         foreach (var testFile in testFiles)
         {
-            List<TestContext> tests = [];
             string content = testFile.OpenText().ReadToEnd();
             JArray testArray = JArray.Parse(content);
-            foreach (JToken item in testArray)
-            {
-                if (item.Type != JTokenType.Object)
-                {
-                    throw new InvalidDataException("invalid test");
-                }
-
-                tests.Add(TestContext.Create((JObject)item));
-            }
-
-            yield return new TestPackage
-            {
-                Name = testFile.Name,
-                Tests = tests,
-            };
+            yield return TestPackage.Create(testFile.Name, testArray);
         }
     }
 }
