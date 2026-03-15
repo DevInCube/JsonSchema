@@ -455,16 +455,7 @@ public class JSchemaValidationReader
     {
         foreach (string requiredName in _schema.Required)
         {
-            bool exists = false;
-            foreach (JProperty prop in obj.Properties())
-            {
-                if (prop.Name.Equals(requiredName))
-                {
-                    exists = true;
-                    break;
-                }
-            }
-
+            bool exists = obj.Properties().Any(prop => prop.Name.Equals(requiredName, StringComparison.Ordinal));
             if (!exists)
             {
                 RaiseValidationError("Required property is missing");

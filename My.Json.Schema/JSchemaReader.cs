@@ -106,18 +106,6 @@ public class JSchemaReader
                     return ResolveInternalReference(path, rootObject);
                 }
             }
-            else
-            {
-                if (string.IsNullOrWhiteSpace(fullHost))
-                {
-                    throw new JSchemaException("host is empty", jObject.Path, jObject);
-                }
-            }
-
-            if (_resolver == null)
-            {
-                throw new JSchemaException("can't resolve external reference without resolver", jObject.Path, jObject);
-            }
 
             Uri remoteUri;
             try
