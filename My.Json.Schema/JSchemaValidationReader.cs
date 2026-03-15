@@ -435,19 +435,16 @@ public class JSchemaValidationReader
 
     private void ValidateUniqueItems(JArray array)
     {
-        IList<JToken> uniques = [];
+        HashSet<JToken> uniqueItems = new(new Utilities.JTokenEqualityComparer());
         foreach (JToken item in array.Children())
         {
-            foreach (JToken unique in uniques)
+            if (uniqueItems.Contains(item))
             {
-                if (item.IsEqualTo(unique))
-                {
-                    RaiseValidationError("Array items are not unique");
-                    return;
-                }
+                RaiseValidationError("Array items are not unique");
+                return;
             }
 
-            uniques.Add(item);
+            uniqueItems.Add(item);
         }
     }
 
