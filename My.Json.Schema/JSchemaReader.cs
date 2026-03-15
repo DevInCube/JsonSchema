@@ -114,6 +114,11 @@ public class JSchemaReader
             }
             catch (UriFormatException)
             {
+                if (rootId == null)
+                {
+                    throw new JSchemaException("missing root id");
+                }
+
                 remoteUri = new Uri(new Uri(rootId), refStr);
             }
 
