@@ -14,6 +14,8 @@ internal sealed class TestExecutionContext : IDisposable
 
     public int ExceptionCount { get; private set; }
 
+    public bool IsSuccess => FailedCount == 0 && ExceptionCount == 0;
+
     public int Total => SuccessCount + FailedCount + ExceptionCount;
 
     public TestExecutionContext(TestExecutionContext parent = null)

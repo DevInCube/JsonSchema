@@ -75,7 +75,7 @@ internal static class Program
                     RunTestCase(testCase, resolver, testCaseExecutionContext);
                 }
 
-                if (testExecutionContext.FailedCount == 0 && testExecutionContext.ExceptionCount == 0)
+                if (testExecutionContext.IsSuccess)
                 {
                     testExecutionContext.ClearLog();
                 }
@@ -108,7 +108,7 @@ internal static class Program
             return;
         }
 
-        bool result = false;
+        bool result;
         try
         {
             result = testCase.Data.IsValid(schema);
