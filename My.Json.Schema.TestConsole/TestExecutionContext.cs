@@ -54,6 +54,7 @@ internal sealed class TestExecutionContext : IDisposable
 
         _builder.AppendLine(message);
     }
+
     public void Log(Exception ex)
     {
         Log($"\t\tException: {ex.Message}");

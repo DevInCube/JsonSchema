@@ -93,6 +93,8 @@ internal static class Program
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types")]
     private static void RunTestCase(TestCase testCase, JSchemaResolver resolver, TestExecutionContext context)
     {
+        context.Log($"\tCase {testCase.Index + 1}: {testCase.Description}");
+
         JSchema schema;
         try
         {
@@ -101,6 +103,7 @@ internal static class Program
         catch (Exception e)
         {
             context.Exception(e);
+            context.Log("\t\tParsing schema");
             context.Log(e);
             return;
         }
@@ -113,25 +116,23 @@ internal static class Program
         catch (Exception e)
         {
             context.Exception(e);
+            context.Log("\t\tValidating data");
             context.Log(e);
             return;
         }
 
         bool success = result == testCase.Valid;
+        var statusString = success ? "ok" : "FAILED";
+        context.Log($"\t\tStatus: {statusString}");
+
         if (!success)
         {
-            var statusString = success ? "ok" : "FAILED";
-            context.Log($"\tCase {testCase.Index + 1}: {testCase.Description} \t\tStatus: {statusString}");
+            context.Fail();
+            return;
         }
 
-        if (success)
-        {
-            context.Success();
-        }
-        else
-        {
-            context.Fail();
-        }
+        context.Success();
+        context.ClearLog();
     }
 
     private static IEnumerable<TestPackage> LoadTests(string testsDirPath)

@@ -186,7 +186,7 @@ public class JSchemaReader
         return internalReference.OriginalString;
     }
 
-    private JSchema ResolveInternalReference(string path, JObject rootObject)
+    private static JObject FindObject(string path, JObject rootObject)
     {
         static string UnEscapePropName(string propName)
         {
@@ -238,7 +238,16 @@ public class JSchemaReader
             throw new JSchemaException("ref to non-object", token.Path, token);
         }
 
-        return ReadSchema(tokenObj, _resolver);
+        return tokenObj;
+    }
+
+    private JSchema ResolveInternalReference(string path, JObject rootObject)
+    {
+        JObject tokenObj = FindObject(path, rootObject);
+
+        // TODO: internal definition schema  with "$ref" : "#" is resolving without root schema in stack.
+        JSchema internalSchema = ReadSchema(tokenObj, _resolver);
+        return internalSchema;
     }
 
     private JSchema ResolveExternalReference(Uri newUri)
@@ -259,6 +268,29 @@ public class JSchemaReader
         return externalSchema;
     }
 
+    private void ReadDefinitions(JProperty defProp)
+    {
+        JToken value = defProp.Value;
+        if (value.Type != JTokenType.Object)
+        {
+            throw new JSchemaException("definitions should be an object", value.Path, value);
+        }
+
+        JObject definitions = (JObject)value;
+
+        foreach (JProperty prop in definitions.Properties())
+        {
+            if (prop.Value.Type != JTokenType.Object)
+            {
+                throw new JSchemaException("definitions property should be an object", value.Path, value);
+            }
+
+            JObject def = prop.Value as JObject;
+            _ = ReadSchema(def, _resolver);
+            // @todo unused schema variable
+        }
+    }
+
     private JSchema Load(JObject jtoken)
     {
         JSchema jschema = new() { Schema = jtoken };
@@ -276,25 +308,7 @@ public class JSchemaReader
         var defProp = jtoken.Property(SchemaKeywords.Definitions);
         if (defProp != null)
         {
-            JToken value = defProp.Value;
-            if (value.Type != JTokenType.Object)
-            {
-                throw new JSchemaException("definitions should be an object", value.Path, value);
-            }
-
-            JObject definitions = (JObject)value;
-
-            foreach (JProperty prop in definitions.Properties())
-            {
-                if (prop.Value.Type != JTokenType.Object)
-                {
-                    throw new JSchemaException("definitions property should be an object", value.Path, value);
-                }
-
-                JObject def = prop.Value as JObject;
-                _ = ReadSchema(def, _resolver);
-                // @todo unused schema variable
-            }
+            ReadDefinitions(defProp);
         }
 
         foreach (var property in jtoken.Properties().Where(property => !property.Name.Equals(SchemaKeywords.Id)))
@@ -309,6 +323,15 @@ public class JSchemaReader
 
         _schemaStack.Pop();
         return jschema;
+    }
+
+    private void AddScope(JSchema jschema)
+    {
+        var scopeUri = _scopeStack.Count > 0
+            ? new Uri(_scopeStack.Peek(), jschema.Id)
+            : jschema.Id;
+        _scopeStack.Push(scopeUri);
+        _resolutionScopes[scopeUri] = jschema;
     }
 
     private void ProcessSchemaProperty(JSchema jschema, string name, JToken value)
@@ -367,12 +390,7 @@ public class JSchemaReader
         {
             string id = ReadString(value, name);
             jschema.Id = new Uri(id, UriKind.RelativeOrAbsolute);
-
-            var scopeUri = _scopeStack.Count > 0
-                ? new Uri(_scopeStack.Peek(), jschema.Id)
-                : jschema.Id;
-            _scopeStack.Push(scopeUri);
-            _resolutionScopes[scopeUri] = jschema;
+            AddScope(jschema);
         }
 
         switch (name)
