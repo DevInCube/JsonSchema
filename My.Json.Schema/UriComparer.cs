@@ -28,6 +28,6 @@ internal sealed class UriComparer : IEqualityComparer<Uri>
             return obj.GetHashCode();
         }
 
-        return obj.GetHashCode() ^ obj.Fragment.GetHashCode();
+        return obj.GetHashCode() ^ obj.Fragment.GetHashCode(StringComparison.Ordinal);
     }
 }

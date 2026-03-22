@@ -477,6 +477,39 @@ public class JSchemaValidationReader
 
         foreach (JProperty property in obj.Properties())
         {
+            ValidateObjectProperty(property);
+        }
+
+        foreach (var pair in _schema.SchemaDependencies)
+        {
+            if (obj.TryGetValue(pair.Key, out _)
+                && !obj.IsValid(pair.Value, this))
+            {
+                RaiseValidationError("Schema dependency is not valid");
+            }
+        }
+
+        foreach ((string key, IList<string> propertySet) in _schema.PropertyDependencies)
+        {
+            if (!obj.TryGetValue(key, out JToken token))
+            {
+                continue;
+            }
+
+            foreach (string propertyName in propertySet)
+            {
+                if (!obj.TryGetValue(propertyName, out token))
+                {
+                    RaiseValidationError("Property dependency is not valid");
+                }
+            }
+        }
+    }
+
+    private void ValidateObjectProperty(JProperty property)
+    {
+        IEnumerable<JSchema> GetSchemas(JProperty property)
+        {
             IList<JSchema> schemas = [];
             string propName = property.Name;
             if (_schema.Properties.TryGetValue(propName, out JSchema value))
@@ -503,44 +536,14 @@ public class JSchemaValidationReader
                 schemas.Add(_schema.AdditionalProperties);
             }
 
-            foreach (JSchema propSchema in schemas)
-            {
-                if (!property.Value.IsValid(propSchema, out IList<ValidationError> childErrors, this))
-                {
-                    RaiseValidationError("Property '{0}' is not valid against schema".FormatWith(property.Name), childErrors);
-                }
-            }
+            return schemas;
         }
-
-        if (_schema.SchemaDependencies.Count > 0)
+       
+        foreach (JSchema propSchema in GetSchemas(property))
         {
-            foreach (var pair in _schema.SchemaDependencies)
+            if (!property.Value.IsValid(propSchema, out IList<ValidationError> childErrors, this))
             {
-                if (obj.TryGetValue(pair.Key, out _)
-                    && !obj.IsValid(pair.Value, this))
-                {
-                    RaiseValidationError("Schema dependency is not valid");
-                }
-            }
-        }
-
-        if (_schema.PropertyDependencies.Count > 0)
-        {
-            foreach (var pair in _schema.PropertyDependencies)
-            {
-                if (!obj.TryGetValue(pair.Key, out JToken token))
-                {
-                    continue;
-                }
-
-                IList<string> propertyset = pair.Value;
-                foreach (string propertyName in propertyset)
-                {
-                    if (!obj.TryGetValue(propertyName, out token))
-                    {
-                        RaiseValidationError("Property dependency is not valid");
-                    }
-                }
+                RaiseValidationError("Property '{0}' is not valid against schema".FormatWith(property.Name), childErrors);
             }
         }
     }
