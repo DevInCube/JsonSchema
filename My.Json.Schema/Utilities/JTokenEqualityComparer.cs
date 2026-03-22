@@ -24,7 +24,7 @@ internal sealed class JTokenEqualityComparer : IEqualityComparer<JToken>
 
         if (x.Type == JTokenType.String && y.Type == JTokenType.String)
         {
-            return x.Value<string>().Equals(y.Value<string>());
+            return x.Value<string>().Equals(y.Value<string>(), StringComparison.Ordinal);
         }
 
         if ((x.Type == JTokenType.Integer || x.Type == JTokenType.Float) &&
@@ -37,18 +37,17 @@ internal sealed class JTokenEqualityComparer : IEqualityComparer<JToken>
         {
             var arr1 = (JArray)x;
             var arr2 = (JArray)y;
-            return
-                arr1.Count == arr2.Count &&
-                Enumerable.Range(0, arr1.Count).All(i => Equals(arr1[i], arr2[i]));
+            return Enumerable.SequenceEqual(arr1, arr2, this);
         }
 
         if (x.Type == JTokenType.Object && y.Type == JTokenType.Object)
         {
             var obj1 = (JObject)x;
             var obj2 = (JObject)y;
-            return
-                obj1.Count == obj2.Count &&
-                obj1.Properties().All(p => Equals(p.Value, obj2[p.Name]));
+            return Enumerable.SequenceEqual(
+                obj1.Properties().OrderBy(x => x.Name),
+                obj2.Properties().OrderBy(x => x.Name),
+                this);
         }
 
         return JToken.DeepEquals(x, y);
@@ -68,7 +67,7 @@ internal sealed class JTokenEqualityComparer : IEqualityComparer<JToken>
 
         if (a.Type == JTokenType.String)
         {
-            return a.Value<string>().GetHashCode();
+            return a.Value<string>().GetHashCode(StringComparison.Ordinal);
         }
 
         if ((a.Type == JTokenType.Integer || a.Type == JTokenType.Float))
