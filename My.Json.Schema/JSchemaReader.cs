@@ -31,30 +31,25 @@ public class JSchemaReader
             _resolver = inResolver;
         }
 
-        JSchema schema;
+        JSchema schema = Load(jObject);
 
-        if (jObject.TryGetValue(SchemaKeywords.Ref, out JToken t))
+        if (!jObject.TryGetValue(SchemaKeywords.Ref, out JToken t))
         {
-            if (!t.IsString())
-            {
-                throw new JSchemaException("$ref should be a string", t.Path, t);
-            }
-
-            string refStr = t.Value<string>();
-
-            schema = ResolveReference(refStr, jObject);
-
-            JSchema metaSchema = Load(jObject);
-            schema.Title ??= metaSchema.Title;
-
-            schema.Description ??= metaSchema.Description;
-        }
-        else
-        {
-            schema = Load(jObject);
+            return schema;
         }
 
-        return schema;
+        if (!t.IsString())
+        {
+            throw new JSchemaException("$ref should be a string", t.Path, t);
+        }
+
+        string refStr = t.Value<string>();
+
+        var resolvedSchema = ResolveReference(refStr, jObject);
+        resolvedSchema.Title ??= schema.Title;
+        resolvedSchema.Description ??= schema.Description;
+
+        return resolvedSchema;
     }
 
     private JSchema ResolveReference(string refStr, JObject jObject)
@@ -191,7 +186,8 @@ public class JSchemaReader
         return internalReference.OriginalString;
     }
 
-    private static JObject FindObject(string path, JObject rootObject)
+    // JSON Pointer: https://datatracker.ietf.org/doc/html/rfc6901
+    private static JObject FindObject(JObject rootObject, string jPointer)
     {
         static string UnEscapePropName(string propName)
         {
@@ -203,39 +199,40 @@ public class JSchemaReader
             return unescapedPropName;
         }
 
-        string[] props = !string.IsNullOrEmpty(path)
-            ? path.TrimStart('/').Split('/')
-            : [];
-
-        JToken token = rootObject;
-
-        foreach (string propName in props)
+        static JToken GetProperty(JToken token, string propName)
         {
-            JToken propVal;
-
             if (token is JObject obj)
             {
                 string unescapedPropName = UnEscapePropName(propName);
-                if (!obj.TryGetValue(unescapedPropName, out propVal))
+                if (!obj.TryGetValue(unescapedPropName, out var propVal))
                 {
                     throw new JSchemaException($"Missing property '{propName}'.", obj.Path, obj);
                 }
+
+                return propVal;
             }
-            else if (token is JArray array)
+            
+            if (token is JArray array)
             {
                 if (!int.TryParse(propName, out int index))
                 {
-                    throw new JSchemaException("invalid array index " + propName, token.Path, token);
+                    throw new JSchemaException($"Invalid array index '{propName}'.", token.Path, token);
                 }
 
-                propVal = array[index];
-            }
-            else
-            {
-                throw new JSchemaException("property value is not an object or array", token.Path, token);
+                return array[index];
             }
 
-            token = propVal;
+            throw new JSchemaException("property value is not an object or array", token.Path, token);
+        }
+
+        string[] props = !string.IsNullOrEmpty(jPointer)
+            ? jPointer.TrimStart('/').Split('/')
+            : [];
+
+        JToken token = rootObject;
+        foreach (string propName in props)
+        {
+            token = GetProperty(token, propName);
         }
 
         if (token is not JObject tokenObj)
@@ -246,9 +243,9 @@ public class JSchemaReader
         return tokenObj;
     }
 
-    private JSchema ResolveInternalReference(string path, JObject rootObject)
+    private JSchema ResolveInternalReference(string jPointer, JObject rootObject)
     {
-        JObject tokenObj = FindObject(path, rootObject);
+        JObject tokenObj = FindObject(rootObject, jPointer);
 
         // TODO: internal definition schema  with "$ref" : "#" is resolving without root schema in stack.
         JSchema internalSchema = ReadSchema(tokenObj, _resolver);
