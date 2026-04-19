@@ -132,6 +132,17 @@ public class JSchemaReader
         }
         else
         {
+            Uri.TryCreate(refStr, UriKind.RelativeOrAbsolute, out Uri refStrUri);
+
+            // Absolute `$ref` may refer directly to a sub-schema declared with the same
+            // `id` somewhere in this schema (e.g. `id: "https://.../x.json"` on a
+            // `definitions` entry). Check resolution scopes before going external.
+            if (refStrUri?.IsAbsoluteUri == true
+                && _resolutionScopes.TryGetValue(refStrUri, out JSchema localScope))
+            {
+                return localScope;
+            }
+
             // Try to resolve internal schema by reference.
             JObject rootObject = (JObject)jObject.GetRootParent();
             if (rootObject.TryGetValue(SchemaKeywords.Id, out JToken rootIdToken))
@@ -144,18 +155,9 @@ public class JSchemaReader
                 }
             }
 
-            Uri refStrUri = null;
-            try
+            if (refStrUri?.IsAbsoluteUri == true)
             {
-                if (Uri.TryCreate(refStr, UriKind.RelativeOrAbsolute, out refStrUri)
-                    && refStrUri.IsAbsoluteUri)
-                {
-                    return ResolveExternalReference(refStrUri);
-                }
-            }
-            catch (UriFormatException)
-            {
-                // Ignore.
+                return ResolveExternalReference(refStrUri);
             }
 
             if (jObject.TryGetValue(refStr, out _))
