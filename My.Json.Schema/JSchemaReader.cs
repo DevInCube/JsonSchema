@@ -15,11 +15,16 @@ public class JSchemaReader
     private readonly Stack<Uri> _scopeStack = new();
     private readonly Dictionary<Uri, JSchema> _resolutionScopes;
 
+    // Pre-scanned index of id-tagged sub-schemas (location-independent identifiers).
+    // Populated before any $ref resolution so forward references like "#foo" can be resolved.
+    private readonly Dictionary<Uri, JObject> _idIndex;
+
     private JSchemaResolver _resolver;
 
     public JSchemaReader()
     {
         _resolutionScopes = new Dictionary<Uri, JSchema>(UriComparer.Instance);
+        _idIndex = new Dictionary<Uri, JObject>(UriComparer.Instance);
     }
 
     public JSchema ReadSchema(JObject jObject, JSchemaResolver inResolver = null)
@@ -66,21 +71,27 @@ public class JSchemaReader
 
         if (refStr.Contains('#'))
         {
-            foreach (var scope in _resolutionScopes)
+            // Compute the fully-qualified URI the $ref is pointing at (resolved against the
+            // current schema stack's id, if any). This is used for both the pre-scanned id
+            // index check and the resolution-scope check below.
+            Uri resolvedBaseUri = _schemaStack.LastOrDefault()?.Id;
+            Uri resolvedRefUri = resolvedBaseUri?.IsAbsoluteUri == true
+                ? new Uri(resolvedBaseUri, refStr)
+                : new Uri(refStr, UriKind.RelativeOrAbsolute);
+
+            // Location-independent identifier lookup (e.g. `$ref: "#foo"` pointing at a
+            // sub-schema previously declared via `id: "#foo"`). Covers the case where the
+            // id-tagged sub-schema has not yet been processed through AddScope.
+            if (_idIndex.FirstOrDefault(x => UriComparer.Instance.Equals(resolvedRefUri, x.Key)) is var idEntry &&
+                idEntry.Key != null)
             {
-                Uri baseUri = _schemaStack.Last().Id;
+                return ReadSchema(idEntry.Value, _resolver);
+            }
 
-                Uri relativeUri = baseUri != null && baseUri.IsAbsoluteUri
-                    ? new Uri(baseUri, refStr)
-                    : new Uri(refStr, UriKind.RelativeOrAbsolute);
-
-                Uri scopeUri = scope.Key;
-
-                if (UriComparer.Instance.Equals(relativeUri, scopeUri))
-                {
-                    JSchema scopeSchema = scope.Value;
-                    return scopeSchema;
-                }
+            if (_resolutionScopes.FirstOrDefault(x => UriComparer.Instance.Equals(resolvedRefUri, x.Key)) is var scope &&
+                scope.Key != null)
+            {
+                return scope.Value;
             }
 
             JObject rootObject = (JObject)jObject.GetRootParent();
@@ -263,11 +274,83 @@ public class JSchemaReader
         JObject obj = JObject.Load(reader);
 
         JSchemaReader externalReader = new() { _resolver = _resolver };
+
+        // Pre-index every `id`-tagged sub-schema in the remote file. This must happen BEFORE
+        // any $ref resolution so that forward/location-independent references (e.g. `#foo`
+        // used before `A: {"id": "#foo"}` is encountered in source order) can be resolved.
+        externalReader.PreScanIds(obj);
+
+        // This registers any resolution scopes it declares and builds the root JSchema
+        // so that `$ref: "#"` inside the fragment resolves to the remote file's root
+        // (not to the fragment sub-schema).
+        JSchema externalRootSchema = externalReader.ReadSchema(obj, _resolver);
+
         string[] fragments = newUri.OriginalString.Split('#');
-        var externalSchema = fragments.Length > 1
-            ? externalReader.ResolveInternalReference(fragments[1], obj)
-            : externalReader.ReadSchema(obj, _resolver);
-        return externalSchema;
+        string fragment = fragments.Length > 1 ? fragments[1] : null;
+        if (string.IsNullOrEmpty(fragment))
+        {
+            return externalRootSchema;
+        }
+
+        // Keep the root on the schema stack while we resolve the fragment so that any
+        // `$ref: "#"` encountered inside the fragment's sub-tree sees the remote root.
+        externalReader._schemaStack.Push(externalRootSchema);
+        try
+        {
+            return externalReader.ResolveInternalReference(fragment, obj);
+        }
+        finally
+        {
+            externalReader._schemaStack.Pop();
+        }
+    }
+
+    // Locates every `id` property and records the JObject it sits on.
+    // Used to resolve forward/location-independent `$ref`s.
+    private void PreScanIds(JObject obj, Uri parentScope = null)
+    {
+        TryAddId(obj, parentScope);
+
+        foreach (JProperty prop in obj.Properties())
+        {
+            WalkTokenForIds(prop.Value, parentScope);
+        }
+    }
+
+    private void TryAddId(JObject obj, Uri parentScope)
+    {
+        if (!obj.TryGetValue(SchemaKeywords.Id, out JToken idToken) ||
+            idToken.Type != JTokenType.String)
+        {
+            return;
+        }
+
+        string idStr = idToken.Value<string>();
+        if (string.IsNullOrEmpty(idStr)
+            || !Uri.TryCreate(idStr, UriKind.RelativeOrAbsolute, out Uri idUri))
+        {
+            return;
+        }
+
+        var currentScope = parentScope?.IsAbsoluteUri == true
+            ? new Uri(parentScope, idUri)
+            : idUri;
+        _idIndex[currentScope] = obj;
+    }
+
+    private void WalkTokenForIds(JToken token, Uri parentScope)
+    {
+        if (token is JObject childObj)
+        {
+            PreScanIds(childObj, parentScope);
+        }
+        else if (token is JArray childArr)
+        {
+            foreach (JToken item in childArr)
+            {
+                WalkTokenForIds(item, parentScope);
+            }
+        }
     }
 
     private void ReadDefinitions(JProperty defProp)
