@@ -1,83 +1,91 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using System.Text.Json.Nodes;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Text.Json;
 
 namespace My.Json.Schema.Utilities;
 
 // Instance Equality
 // https://json-schema.org/draft/2020-12/json-schema-core.html#section-4.2.2
-internal sealed class JTokenEqualityComparer : IEqualityComparer<JToken>
+internal sealed class JTokenEqualityComparer : IEqualityComparer<JsonNode>
 {
-    public bool Equals(JToken x, JToken y)
+    public bool Equals(JsonNode x, JsonNode y)
     {
-        if (x.Type == JTokenType.Null && y.Type == JTokenType.Null)
+        JsonValueKind xKind = x?.GetValueKind() ?? JsonValueKind.Null;
+        JsonValueKind yKind = y?.GetValueKind() ?? JsonValueKind.Null;
+        if (xKind == JsonValueKind.Null && yKind == JsonValueKind.Null)
         {
             return true;
         }
 
-        if (x.Type == JTokenType.Boolean && y.Type == JTokenType.Boolean)
+        if (xKind == JsonValueKind.True && yKind == JsonValueKind.True)
         {
-            return x.Value<bool>().Equals(y.Value<bool>());
+            return x.GetValue<bool>().Equals(y.GetValue<bool>());
         }
 
-        if (x.Type == JTokenType.String && y.Type == JTokenType.String)
+        if (xKind == JsonValueKind.False && yKind == JsonValueKind.False)
         {
-            return x.Value<string>().Equals(y.Value<string>(), StringComparison.Ordinal);
+            return x.GetValue<bool>().Equals(y.GetValue<bool>());
         }
 
-        if ((x.Type == JTokenType.Integer || x.Type == JTokenType.Float) &&
-            (y.Type == JTokenType.Integer || y.Type == JTokenType.Float))
+        if (xKind == JsonValueKind.String && yKind == JsonValueKind.String)
         {
-            return x.Value<double>().Equals(y.Value<double>());
+            return x.GetValue<string>().Equals(y.GetValue<string>(), StringComparison.Ordinal);
         }
 
-        if (x.Type == JTokenType.Array && y.Type == JTokenType.Array)
+        if (xKind == JsonValueKind.Number && yKind == JsonValueKind.Number)
         {
-            var arr1 = (JArray)x;
-            var arr2 = (JArray)y;
+            return x.GetValue<double>().Equals(y.GetValue<double>());
+        }
+
+        if (xKind == JsonValueKind.Array && yKind == JsonValueKind.Array)
+        {
+            var arr1 = (JsonArray)x;
+            var arr2 = (JsonArray)y;
             return Enumerable.SequenceEqual(arr1, arr2, this);
         }
 
-        if (x.Type == JTokenType.Object && y.Type == JTokenType.Object)
+        if (xKind == JsonValueKind.Object && yKind == JsonValueKind.Object)
         {
-            var obj1 = (JObject)x;
-            var obj2 = (JObject)y;
+            var obj1 = (JsonObject)x;
+            var obj2 = (JsonObject)y;
             return Enumerable.SequenceEqual(
-                obj1.Properties().OrderBy(x => x.Name),
-                obj2.Properties().OrderBy(x => x.Name),
+                obj1.OrderBy(x => x.Key).Select(x => x.Value),
+                obj2.OrderBy(x => x.Key).Select(x => x.Value),
                 this);
         }
 
-        return JToken.DeepEquals(x, y);
+        return JsonNode.DeepEquals(x, y);
     }
 
-    public int GetHashCode([DisallowNull] JToken a)
+    public int GetHashCode([DisallowNull] JsonNode a)
     {
-        if (a.Type == JTokenType.Null)
+        JsonValueKind aKind = a?.GetValueKind() ?? JsonValueKind.Null;
+        if (aKind == JsonValueKind.Null)
         {
             return 0;
         }
 
-        if (a.Type == JTokenType.Boolean)
+        if (aKind == JsonValueKind.True || aKind == JsonValueKind.False)
         {
-            return a.Value<bool>().GetHashCode();
+            return a.GetValue<bool>().GetHashCode();
         }
 
-        if (a.Type == JTokenType.String)
+        if (aKind == JsonValueKind.String)
         {
-            return a.Value<string>().GetHashCode(StringComparison.Ordinal);
+            return a.GetValue<string>().GetHashCode(StringComparison.Ordinal);
         }
 
-        if ((a.Type == JTokenType.Integer || a.Type == JTokenType.Float))
+        if (aKind == JsonValueKind.Number)
         {
-            return a.Value<double>().GetHashCode();
+            return a.GetValue<double>().GetHashCode();
         }
 
-        if (a.Type == JTokenType.Array)
+        if (aKind == JsonValueKind.Array)
         {
-            var arr1 = (JArray)a;
+            var arr1 = (JsonArray)a;
             var code = new HashCode();
             foreach (var item in arr1)
             {
@@ -87,11 +95,11 @@ internal sealed class JTokenEqualityComparer : IEqualityComparer<JToken>
             return code.ToHashCode();
         }
 
-        if (a.Type == JTokenType.Object)
+        if (aKind == JsonValueKind.Object)
         {
-            var obj1 = (JObject)a;
+            var obj1 = (JsonObject)a;
             var code = new HashCode();
-            foreach (var item in obj1.Properties().OrderBy(x => x.Name))
+            foreach (var item in obj1.OrderBy(x => x.Key))
             {
                 code.Add(item.Value, this);
             }

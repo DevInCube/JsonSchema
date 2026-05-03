@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using System.Text.Json.Nodes;
 using System;
 
 namespace My.Json.Schema.TestConsole;
@@ -11,11 +11,11 @@ internal sealed class TestCase
 
     public string Description { get; init; }
 
-    public JToken Data { get; init; }
+    public JsonNode Data { get; init; }
 
     public bool Valid { get; init; }
 
-    internal static TestCase Create(TestContext context, JObject obj, int index)
+    internal static TestCase Create(TestContext context, JsonObject obj, int index)
     {
         ArgumentNullException.ThrowIfNull(obj);
 
@@ -23,9 +23,9 @@ internal sealed class TestCase
         {
             Context = context,
             Index = index,
-            Description = obj.GetValue("description").Value<string>(),
-            Data = obj.GetValue("data"),
-            Valid = obj.GetValue("valid").Value<bool>()
+            Description = obj.TryGetPropertyValue("description", out JsonNode desc) ? desc.GetValue<string>() : string.Empty,
+            Data = obj.TryGetPropertyValue("data", out JsonNode data) ? data : string.Empty,
+            Valid = obj.TryGetPropertyValue("valid", out JsonNode valid) && valid.GetValue<bool>(),
         };
     }
 }

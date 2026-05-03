@@ -14,9 +14,6 @@
     <DebugType>pdbonly</DebugType>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-  </ItemGroup>
-  <ItemGroup>
     <None Include="Resources\remotes\**\*" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Resources\tests\draft4\**\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

@@ -13,7 +13,7 @@ public static class JSchemaTypeHelpers
             "null" => JSchemaType.Null,
             "object" => JSchemaType.Object,
             "string" => JSchemaType.String,
-            _ => throw new JSchemaException(),
+            _ => throw new JSchemaException($"Unknown type: {strType}"),
         };
     }
 }

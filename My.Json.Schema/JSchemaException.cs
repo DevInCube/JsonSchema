@@ -1,7 +1,7 @@
 ﻿using My.Json.Schema.Utilities;
-using Newtonsoft.Json;
 using System;
 using System.Text;
+using System.Text.Json.Nodes;
 
 namespace My.Json.Schema;
 
@@ -19,12 +19,12 @@ public class JSchemaException : Exception
     {
     }
 
-    public JSchemaException(string message, string path, IJsonLineInfo lineInfo)
-        : this(FormatMessage(message, path, lineInfo))
+    public JSchemaException(string message, JsonNode jNode)
+        : this(FormatMessage(message, jNode?.GetPath() ?? string.Empty))
     {
     }
 
-    private static string FormatMessage(string message, string path, IJsonLineInfo lineInfo)
+    private static string FormatMessage(string message, string path)
     {
         StringBuilder bld = new();
 
@@ -32,11 +32,6 @@ public class JSchemaException : Exception
         if (path != null)
         {
             bld.Append(" Path: '{0}' ".FormatWith(path));
-        }
-
-        if (lineInfo != null && lineInfo.HasLineInfo())
-        {
-            bld.Append(" Line {0} Position {1} ".FormatWith(lineInfo.LineNumber, lineInfo.LinePosition));
         }
 
         return bld.ToString();

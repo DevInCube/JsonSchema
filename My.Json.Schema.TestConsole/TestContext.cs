@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using System.Text.Json.Nodes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,23 +11,23 @@ internal sealed class TestContext
 
     public string Description { get; init; }
 
-    public JObject Schema { get; init; }
+    public JsonObject Schema { get; init; }
 
     public List<TestCase> Cases { get; init; } = [];
 
-    internal static TestContext Create(TestPackage package, JObject testObject)
+    internal static TestContext Create(TestPackage package, JsonObject testObject)
     {
         ArgumentNullException.ThrowIfNull(testObject);
 
         TestContext context = new()
         {
             Package = package,
-            Description = testObject.GetValue("description").Value<string>(),
-            Schema = (JObject)testObject.GetValue("schema"),
+            Description = testObject.TryGetPropertyValue("description", out JsonNode desc) ? desc.GetValue<string>() : string.Empty,
+            Schema = testObject.TryGetPropertyValue("schema", out JsonNode schema) ? (JsonObject)schema : null,
         };
-        var cases = ((JArray)testObject.GetValue("tests"))
-            .Children<JObject>()
-            .Select((x, i) => TestCase.Create(context, x, i));
+        var cases = (testObject.TryGetPropertyValue("tests", out JsonNode arr) ? (JsonArray)arr : null)
+            ?.Select((x, i) => TestCase.Create(context, x.AsObject(), i))
+            ?? [];
         context.Cases.AddRange(cases);
         return context;
     }

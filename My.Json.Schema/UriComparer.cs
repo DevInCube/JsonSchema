@@ -11,23 +11,11 @@ internal sealed class UriComparer : IEqualityComparer<Uri>
 
     public bool Equals(Uri x, Uri y)
     {
-        if (x != y)
-        {
-            return false;
-        }
-
-        return !x.IsAbsoluteUri
-            ? string.Equals(x.OriginalString, y.OriginalString, StringComparison.Ordinal)
-            : string.Equals(x.Fragment, y.Fragment, StringComparison.Ordinal);
+        return string.Equals(x?.OriginalString, y?.OriginalString, StringComparison.Ordinal);
     }
 
     public int GetHashCode(Uri obj)
     {
-        if (!obj.IsAbsoluteUri || string.IsNullOrEmpty(obj.Fragment))
-        {
-            return obj.GetHashCode();
-        }
-
-        return obj.GetHashCode() ^ obj.Fragment.GetHashCode(StringComparison.Ordinal);
+        return obj.OriginalString.GetHashCode(StringComparison.Ordinal);
     }
 }

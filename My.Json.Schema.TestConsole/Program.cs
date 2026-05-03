@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using System.Text.Json.Nodes;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -26,7 +26,7 @@ internal static class Program
         string testsOptionalDraftDir = Path.Combine(testsDraftDir, "optional");
         var draftOptionalTests = LoadTests(testsOptionalDraftDir);
 
-        var testCase = GetTestCase(draftTests, "refRemote.json", "root ref in remote ref", "object is invalid");
+        var testCase = GetTestCase(draftOptionalTests, "bignum.json", "integer", "a bignum is an integer");
         RunTest(testCase, resolver);
 
         Console.WriteLine("MAIN TESTS ====================");
@@ -40,10 +40,10 @@ internal static class Program
     {
         TestPackage package = packages
             .FirstOrDefault(x => x.Name.Equals(packageName, StringComparison.Ordinal))
-            ?? throw new ArgumentException($"package {packageName} is missing", nameof(packageName));
+            ?? throw new ArgumentException($"package '{packageName}' is missing", nameof(packageName));
         TestContext context = package.Tests
             .FirstOrDefault(x => x.Description.Equals(contextName, StringComparison.Ordinal))
-            ?? throw new ArgumentException($"context {contextName} is missing in package {packageName}", nameof(contextName));
+            ?? throw new ArgumentException($"context '{contextName}' is missing in package '{packageName}'", nameof(contextName));
         TestCase test = context.Cases
             .FirstOrDefault(x => x.Description.Equals(caseName, StringComparison.Ordinal))
             ?? throw new ArgumentException($"test case {caseName} is missing in context {contextName} of package {packageName}", nameof(caseName));
@@ -53,8 +53,8 @@ internal static class Program
     private static void RunTest(TestCase testCase, JSchemaResolver resolver)
     {
         using TestExecutionContext executionContext = new();
-        executionContext.Log($"Package: {testCase.Context.Package.Name}");
-        executionContext.Log($"  Test context: {testCase.Context.Description}:");
+        executionContext.Log($"Package: '{testCase.Context.Package.Name}'");
+        executionContext.Log($"  Test context: '{testCase.Context.Description}':");
         RunTestCase(testCase, resolver, executionContext);
     }
 
@@ -68,7 +68,7 @@ internal static class Program
             foreach (TestContext testContext in testPack.Tests)
             {
                 using TestExecutionContext testExecutionContext = new(packExecutionContext);
-                testExecutionContext.Log($"Test context: {testContext.Description}, {testContext.Cases.Count} test cases");
+                testExecutionContext.Log($"Test context: '{testContext.Description}', {testContext.Cases.Count} test cases");
                 foreach (TestCase testCase in testContext.Cases)
                 {
                     using TestExecutionContext testCaseExecutionContext = new(testExecutionContext);
@@ -93,7 +93,7 @@ internal static class Program
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types")]
     private static void RunTestCase(TestCase testCase, JSchemaResolver resolver, TestExecutionContext context)
     {
-        context.Log($"\tCase {testCase.Index + 1}: {testCase.Description}");
+        context.Log($"\tCase {testCase.Index + 1}: '{testCase.Description}'");
 
         JSchema schema;
         try
@@ -142,7 +142,7 @@ internal static class Program
         foreach (var testFile in testFiles)
         {
             string content = testFile.OpenText().ReadToEnd();
-            JArray testArray = JArray.Parse(content);
+            JsonArray testArray = (JsonArray)JsonArray.Parse(content);
             yield return TestPackage.Create(testFile.Name, testArray);
         }
     }

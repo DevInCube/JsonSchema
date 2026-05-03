@@ -1,10 +1,11 @@
 ﻿using My.Json.Schema.Utilities;
-using Newtonsoft.Json.Linq;
+using System.Text.Json.Nodes;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Text.Json;
 
 namespace My.Json.Schema;
 
@@ -16,14 +17,14 @@ public class JSchemaValidationReader
 
     private readonly JSchemaValidationReader _parentReader;
     private JSchema _schema;
-    private JToken _data;
+    private JsonNode _data;
 
     public JSchemaValidationReader(JSchemaValidationReader parentReader)
     {
         _parentReader = parentReader;
     }
 
-    public void Validate(JToken data, JSchema schema)
+    public void Validate(JsonNode data, JSchema schema)
     {
         ArgumentNullException.ThrowIfNull(schema);
 
@@ -39,25 +40,15 @@ public class JSchemaValidationReader
             reader = reader._parentReader;
         }
 
-        if (data == null)
-        {
-            if (!schema.Type.HasFlag(JSchemaType.Null))
-            {
-                RaiseValidationError("Unexpected null");
-            }
-
-            return;
-        }
-
         _data = data;
         _schema = schema;
+
+        ValidateType();
 
         if (schema.Enum.Count > 0)
         {
             ValidateEnum();
         }
-
-        ValidateType();
 
         if (schema.AllOf.Count > 0)
         {
@@ -90,7 +81,7 @@ public class JSchemaValidationReader
             return;
         }
 
-        RaiseValidationError("Data does not matches enum");
+        RaiseValidationError("Data does not match enum");
     }
 
     private void ValidateNot()
@@ -158,7 +149,10 @@ public class JSchemaValidationReader
                 RaiseValidationError("Unexpected integer value");
             }
 
-            double integer = Convert.ToDouble(_data, CultureInfo.InvariantCulture);
+            if (!_data.AsValue().TryGetValue<double>(out double integer))
+            {
+                return;
+            }
 
             ValidateInteger(integer);
         }
@@ -171,7 +165,7 @@ public class JSchemaValidationReader
                 RaiseValidationError("Unexpected number value");
             }
 
-            double doubleValue = _data.Value<double>();
+            double doubleValue = _data.GetValue<double>();
 
             ValidateNumber(doubleValue);
         }
@@ -184,9 +178,10 @@ public class JSchemaValidationReader
                 RaiseValidationError("Unexpected string value");
             }
 
-            var value = _data.Type == JTokenType.Date
-                ? _data.Value<DateTime>().ToJsonString()
-                : _data.Value<string>();
+            var value =
+                //_data.GetValueKind() == JsonValueKind.Date // TODO date
+                //? _data.GetValue<DateTime>().ToJsonString()
+                _data.GetValue<string>();
 
             ValidateString(value);
         }
@@ -208,7 +203,7 @@ public class JSchemaValidationReader
                 RaiseValidationError("Unexpected array");
             }
 
-            JArray array = _data as JArray;
+            JsonArray array = _data as JsonArray;
 
             ValidateArray(array);
         }
@@ -221,43 +216,48 @@ public class JSchemaValidationReader
                 RaiseValidationError("Unexpected object value");
             }
 
-            JObject obj = _data as JObject;
+            JsonObject obj = _data as JsonObject;
 
             ValidateObject(obj);
         }
 
-        if (_data.Type == JTokenType.Null)
+        JsonValueKind kind = _data?.GetValueKind() ?? JsonValueKind.Null;
+        if (kind == JsonValueKind.Null)
         {
             ValidateNullType();
         }
 
-        if (_data.Type == JTokenType.Integer)
+        if (kind == JsonValueKind.Number)
         {
-            ValidateIntegerType();
+            bool isInteger = _data.AsValue().TryGetValue<long>(out _)
+                || IsIntegerRawFormat(_data);
+            if (isInteger)
+            {
+                ValidateIntegerType();
+            }
+            else
+            {
+                ValidateFloatType();
+            }
+
         }
 
-        if (_data.Type == JTokenType.Float)
-        {
-            ValidateFloatType();
-        }
-
-        if (_data.Type == JTokenType.String
-            || _data.Type == JTokenType.Date)
+        if (kind == JsonValueKind.String)
         {
             ValidateStringOrDateType();
         }
 
-        if (_data.Type == JTokenType.Boolean)
+        if (kind == JsonValueKind.True || kind == JsonValueKind.False)
         {
             ValidateBooleanType();
         }
 
-        if (_data.Type == JTokenType.Array)
+        if (kind == JsonValueKind.Array)
         {
             ValidateArrayType();
         }
 
-        if (_data.Type == JTokenType.Object)
+        if (kind == JsonValueKind.Object)
         {
             ValidateObjectType();
         }
@@ -376,7 +376,7 @@ public class JSchemaValidationReader
         }
     }
 
-    private void ValidateArray(JArray array)
+    private void ValidateArray(JsonArray array)
     {
         if (_schema.UniqueItems)
         {
@@ -401,7 +401,7 @@ public class JSchemaValidationReader
 
         if (_schema.ItemsSchema != null)
         {
-            foreach (JToken item in array)
+            foreach (JsonNode item in array)
             {
                 if (!item.IsValid(_schema.ItemsSchema, out IList<ValidationError> childErrors, this))
                 {
@@ -420,7 +420,7 @@ public class JSchemaValidationReader
 
             for (int i = 0; i < array.Count; i++)
             {
-                JToken item = array[i];
+                JsonNode item = array[i];
                 var itemSchema = i < _schema.ItemsArray.Count
                     ? _schema.ItemsArray[i]
                     : _schema.AdditionalItems;
@@ -433,10 +433,10 @@ public class JSchemaValidationReader
         }
     }
 
-    private void ValidateUniqueItems(JArray array)
+    private void ValidateUniqueItems(JsonArray array)
     {
-        HashSet<JToken> uniqueItems = new(new Utilities.JTokenEqualityComparer());
-        foreach (JToken item in array.Children())
+        HashSet<JsonNode> uniqueItems = new(new Utilities.JTokenEqualityComparer());
+        foreach (JsonNode item in array)
         {
             if (uniqueItems.Contains(item))
             {
@@ -448,11 +448,11 @@ public class JSchemaValidationReader
         }
     }
 
-    private void ValidateObject(JObject obj)
+    private void ValidateObject(JsonObject obj)
     {
         foreach (string requiredName in _schema.Required)
         {
-            bool exists = obj.Properties().Any(prop => prop.Name.Equals(requiredName, StringComparison.Ordinal));
+            bool exists = obj.Any(prop => prop.Key.Equals(requiredName, StringComparison.Ordinal));
             if (!exists)
             {
                 RaiseValidationError("Required property is missing");
@@ -461,7 +461,7 @@ public class JSchemaValidationReader
 
         if (_schema.MinProperties != null)
         {
-            if (obj.Properties().Count() < _schema.MinProperties)
+            if (obj.Count < _schema.MinProperties)
             {
                 RaiseValidationError("Properties count is less than minimum");
             }
@@ -469,20 +469,20 @@ public class JSchemaValidationReader
 
         if (_schema.MaxProperties != null)
         {
-            if (obj.Properties().Count() > _schema.MaxProperties)
+            if (obj.Count > _schema.MaxProperties)
             {
                 RaiseValidationError("Properties count is greater than maximum");
             }
         }
 
-        foreach (JProperty property in obj.Properties())
+        foreach (KeyValuePair<string, JsonNode> property in obj)
         {
             ValidateObjectProperty(property);
         }
 
         foreach (var pair in _schema.SchemaDependencies)
         {
-            if (obj.TryGetValue(pair.Key, out _)
+            if (obj.TryGetPropertyValue(pair.Key, out _)
                 && !obj.IsValid(pair.Value, this))
             {
                 RaiseValidationError("Schema dependency is not valid");
@@ -491,14 +491,14 @@ public class JSchemaValidationReader
 
         foreach ((string key, IList<string> propertySet) in _schema.PropertyDependencies)
         {
-            if (!obj.TryGetValue(key, out JToken token))
+            if (!obj.TryGetPropertyValue(key, out JsonNode token))
             {
                 continue;
             }
 
             foreach (string propertyName in propertySet)
             {
-                if (!obj.TryGetValue(propertyName, out token))
+                if (!obj.TryGetPropertyValue(propertyName, out token))
                 {
                     RaiseValidationError("Property dependency is not valid");
                 }
@@ -506,12 +506,12 @@ public class JSchemaValidationReader
         }
     }
 
-    private void ValidateObjectProperty(JProperty property)
+    private void ValidateObjectProperty(KeyValuePair<string, JsonNode> property)
     {
-        IEnumerable<JSchema> GetSchemas(JProperty property)
+        IEnumerable<JSchema> GetSchemas(KeyValuePair<string, JsonNode> property)
         {
             IList<JSchema> schemas = [];
-            string propName = property.Name;
+            string propName = property.Key;
             if (_schema.Properties.TryGetValue(propName, out JSchema value))
             {
                 schemas.Add(value);
@@ -531,6 +531,7 @@ public class JSchemaValidationReader
                 if (!_schema.AllowAdditionalProperties)
                 {
                     RaiseValidationError("Additional properties are not allowed");
+                    return schemas;
                 }
 
                 schemas.Add(_schema.AdditionalProperties);
@@ -538,12 +539,12 @@ public class JSchemaValidationReader
 
             return schemas;
         }
-       
+
         foreach (JSchema propSchema in GetSchemas(property))
         {
             if (!property.Value.IsValid(propSchema, out IList<ValidationError> childErrors, this))
             {
-                RaiseValidationError("Property '{0}' is not valid against schema".FormatWith(property.Name), childErrors);
+                RaiseValidationError("Property '{0}' is not valid against schema".FormatWith(property.Key), childErrors);
             }
         }
     }
@@ -557,12 +558,10 @@ public class JSchemaValidationReader
                 RaiseValidationError("Value is less than minimum");
             }
 
-            if (_schema.ExclusiveMinimum)
+            if (_schema.ExclusiveMinimum
+                && Math.Abs(integer - _schema.Minimum.Value) <= SafePrecisionValue)
             {
-                if (Math.Abs(integer - _schema.Minimum.Value) > SafePrecisionValue)
-                {
-                    RaiseValidationError("Value should not be equal to minimum");
-                }
+                RaiseValidationError("Value should not be equal to minimum");
             }
         }
 
@@ -573,12 +572,10 @@ public class JSchemaValidationReader
                 RaiseValidationError("Value is greater than maximum");
             }
 
-            if (_schema.ExclusiveMaximum)
+            if (_schema.ExclusiveMaximum
+                && Math.Abs(integer - _schema.Maximum.Value) <= SafePrecisionValue)
             {
-                if (Math.Abs(integer - _schema.Maximum.Value) > SafePrecisionValue)
-                {
-                    RaiseValidationError("Value should not be equal to maximum");
-                }
+                RaiseValidationError("Value should not be equal to maximum");
             }
         }
 
@@ -586,12 +583,23 @@ public class JSchemaValidationReader
         {
             if (Math.Abs(integer) > SafePrecisionValue)
             {
-                if (Math.Abs(integer % (double)_schema.MultipleOf) > SafePrecisionValue)
+                if (Math.Abs(Math.IEEERemainder(integer, _schema.MultipleOf.Value)) > SafePrecisionValue)
                 {
                     RaiseValidationError("Value is not a multiple of");
                 }
             }
         }
+    }
+
+    private static bool IsIntegerRawFormat(JsonNode node)
+    {
+        if (node.AsValue().TryGetValue<JsonElement>(out var el))
+        {
+            string raw = el.GetRawText();
+            return !raw.Contains('.') && !raw.Contains('e') && !raw.Contains('E');
+        }
+
+        return false;
     }
 
     private void RaiseValidationError(string message, IList<ValidationError> childErrors = null)

@@ -1,13 +1,14 @@
 ﻿using My.Json.Schema.Utilities;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace My.Json.Schema;
 
 public class JSchema
 {
-    internal JObject Schema;
+    internal JsonObject Schema;
 
     #region public properties
 
@@ -38,7 +39,7 @@ public class JSchema
 
     public string Description { get; set; }
 
-    public object Default { get; set; }
+    public JsonNode Default { get; set; }
 
     public string Format { get; set; }
 
@@ -181,7 +182,7 @@ public class JSchema
         set;
     }
 
-    public IList<JToken> Enum => field ??= [];
+    public IList<JsonNode> Enum => field ??= [];
 
     public IList<JSchema> AllOf => field ??= [];
 
@@ -203,7 +204,7 @@ public class JSchema
 
     public IDictionary<string, IList<string>> PropertyDependencies => field ??= new Dictionary<string, IList<string>>();
 
-    public IDictionary<string, JToken> ExtensionData => field ??= new Dictionary<string, JToken>();
+    public IDictionary<string, JsonNode> ExtensionData => field ??= new Dictionary<string, JsonNode>();
 
     #endregion
 
@@ -228,7 +229,14 @@ public class JSchema
             throw new JSchemaException("invalid json");
         }
 
-        JObject jtoken = JObject.Parse(json);
+        JsonDocumentOptions options = new()
+        {
+            AllowTrailingCommas = true,
+        };
+        if (JsonNode.Parse(json, documentOptions: options) is not JsonObject jtoken)
+        {
+            throw new JSchemaException("schema must be a JSON object");
+        }
 
         JSchemaReader reader = new();
         return reader.ReadSchema(jtoken, resolver);

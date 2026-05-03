@@ -1,24 +1,30 @@
 ﻿using System;
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace My.Json.Schema.Utilities;
 
-public static class DateTimeHelpers
+public static partial class DateTimeHelpers
 {
-    private const string DateTimeFormat = "yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'";
+    // RFC 3339: date "T" time offset, where offset is Z or ±HH:MM
+    [GeneratedRegex(@"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
+    private static partial Regex CompileRegex();
+
+    private static readonly Regex Rfc3339Regex = CompileRegex();
 
     public static string ToJsonString(this DateTime datetime)
     {
-        return datetime.ToString(DateTimeFormat, CultureInfo.InvariantCulture);
+        return datetime.ToString("o", CultureInfo.InvariantCulture);
     }
 
     public static bool IsValidDateTimeFormat(string value)
     {
-        return DateTime.TryParseExact(
-            value,
-            DateTimeFormat,
-            CultureInfo.InvariantCulture,
-            DateTimeStyles.AssumeUniversal,
-            out DateTime _);
+        if (!Rfc3339Regex.IsMatch(value))
+        {
+            return false;
+        }
+
+        return DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out _);
     }
+
 }

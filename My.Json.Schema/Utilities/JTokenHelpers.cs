@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using System.Text.Json.Nodes;
 
 namespace My.Json.Schema.Utilities;
 
@@ -6,15 +6,7 @@ internal static class JTokenHelpers
 {
     private static readonly JTokenEqualityComparer s_equalityComparer = new();
 
-    public static bool IsString(this JToken t)
-    {
-        return
-            t.Type == JTokenType.Undefined
-            || t.Type == JTokenType.Null
-            || t.Type == JTokenType.String;
-    }
-
-    public static JToken GetRootParent(this JToken token)
+    public static JsonNode GetRootParent(this JsonNode token)
     {
         while (token.Parent != null)
         {
@@ -24,7 +16,7 @@ internal static class JTokenHelpers
         return token;
     }
 
-    public static bool IsEqualTo(this JToken a, JToken b)
+    public static bool IsEqualTo(this JsonNode a, JsonNode b)
     {
         return s_equalityComparer.Equals(a, b);
     }

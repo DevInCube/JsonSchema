@@ -1,6 +1,6 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
-using Newtonsoft.Json.Linq;
+using System.Text.Json.Nodes;
 using System;
 using System.IO;
 using System.Text;
@@ -201,7 +201,7 @@ public class JSchemaTests
     {
         JSchema subject = JSchema.Parse(@"{""default"":""string""}");
 
-        Assert.AreEqual(new JValue("string"), subject.Default);
+        Assert.AreEqual("string", subject.Default.GetValue<string>());
     }
 
     [TestMethod]
@@ -209,7 +209,7 @@ public class JSchemaTests
     {
         JSchema subject = JSchema.Parse(@"{""default"":{}}");
 
-        Assert.IsInstanceOfType<JObject>(subject.Default);
+        Assert.IsInstanceOfType<JsonObject>(subject.Default);
     }
 
     #endregion
@@ -993,7 +993,7 @@ public class JSchemaTests
         JSchema subject = JSchema.Parse(@"{""enum"":[""string""]}");
 
         Assert.AreEqual(1, subject.Enum.Count);
-        Assert.AreEqual("string", subject.Enum[0]);
+        Assert.AreEqual("string", subject.Enum[0].GetValue<string>());
     }
 
     [TestMethod]
@@ -1002,8 +1002,8 @@ public class JSchemaTests
         JSchema subject = JSchema.Parse(@"{""enum"":[0,2]}");
 
         Assert.AreEqual(2, subject.Enum.Count);
-        Assert.AreEqual(0, subject.Enum[0]);
-        Assert.AreEqual(2, subject.Enum[1]);
+        Assert.AreEqual(0, subject.Enum[0].GetValue<int>());
+        Assert.AreEqual(2, subject.Enum[1].GetValue<int>());
     }
 
     [TestMethod]
@@ -1018,9 +1018,9 @@ public class JSchemaTests
         JSchema subject = JSchema.Parse(@"{""enum"":[""string"",0, {}]}");
 
         Assert.AreEqual(3, subject.Enum.Count);
-        Assert.AreEqual("string", subject.Enum[0]);
-        Assert.AreEqual(0, subject.Enum[1]);
-        Assert.IsTrue(JToken.DeepEquals(new JObject(), subject.Enum[2]));
+        Assert.AreEqual("string", subject.Enum[0].GetValue<string>());
+        Assert.AreEqual(0, subject.Enum[1].GetValue<int>());
+        Assert.IsTrue(JsonNode.DeepEquals(new JsonObject(), subject.Enum[2]));
     }
 
     [TestMethod]
@@ -1054,7 +1054,7 @@ public class JSchemaTests
     {
         JSchema subject = JSchema.Parse(@"{""additionalProperties"":{}}");
 
-        Assert.IsTrue(JToken.DeepEquals(new JObject(), JObject.Parse(subject.AdditionalProperties.ToString())));
+        Assert.IsTrue(JsonNode.DeepEquals(new JsonObject(), JsonObject.Parse(subject.AdditionalProperties.ToString())));
     }
     #endregion
 
@@ -1113,7 +1113,7 @@ public class JSchemaTests
     {
         JSchema subject = JSchema.Parse(@"{""allOf"":[{}]}");
 
-        Assert.IsTrue(JToken.DeepEquals(new JObject(), JObject.Parse(subject.AllOf[0].ToString())));
+        Assert.IsTrue(JsonNode.DeepEquals(new JsonObject(), JsonObject.Parse(subject.AllOf[0].ToString())));
     }
     #endregion
 
@@ -1141,7 +1141,7 @@ public class JSchemaTests
     {
         JSchema subject = JSchema.Parse(@"{""anyOf"":[{}]}");
 
-        Assert.IsTrue(JToken.DeepEquals(new JObject(), JObject.Parse(subject.AnyOf[0].ToString())));
+        Assert.IsTrue(JsonNode.DeepEquals(new JsonObject(), JsonObject.Parse(subject.AnyOf[0].ToString())));
     }
     #endregion
 
@@ -1169,7 +1169,7 @@ public class JSchemaTests
     {
         JSchema subject = JSchema.Parse(@"{""oneOf"":[{}]}");
 
-        Assert.IsTrue(JToken.DeepEquals(new JObject(), JObject.Parse(subject.OneOf[0].ToString())));
+        Assert.IsTrue(JsonNode.DeepEquals(new JsonObject(), JsonObject.Parse(subject.OneOf[0].ToString())));
     }
     #endregion
 
@@ -1185,7 +1185,7 @@ public class JSchemaTests
     {
         JSchema subject = JSchema.Parse(@"{""not"":{}}");
 
-        Assert.IsTrue(JToken.DeepEquals(new JObject(), JObject.Parse(subject.Not.ToString())));
+        Assert.IsTrue(JsonNode.DeepEquals(new JsonObject(), JsonObject.Parse(subject.Not.ToString())));
     }
     #endregion
 
@@ -1196,7 +1196,7 @@ public class JSchemaTests
         JSchema subject = JSchema.Parse(@"{""definitions"":{}}");
 
         Assert.IsTrue(subject.ExtensionData.ContainsKey("definitions"));
-        Assert.IsTrue(JToken.DeepEquals(new JObject(), subject.ExtensionData["definitions"]));
+        Assert.IsTrue(JsonNode.DeepEquals(new JsonObject(), subject.ExtensionData["definitions"]));
     }
 
     [TestMethod]
@@ -1205,7 +1205,7 @@ public class JSchemaTests
         JSchema subject = JSchema.Parse(@"{""ext"":{}}");
 
         Assert.IsTrue(subject.ExtensionData.ContainsKey("ext"));
-        Assert.IsTrue(JToken.DeepEquals(new JObject(), subject.ExtensionData["ext"]));
+        Assert.IsTrue(JsonNode.DeepEquals(new JsonObject(), subject.ExtensionData["ext"]));
     }
     #endregion
 

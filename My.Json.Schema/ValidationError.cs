@@ -1,6 +1,5 @@
 ﻿using My.Json.Schema.Utilities;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using System.Text.Json.Nodes;
 using System.Collections.Generic;
 using System.Text;
 
@@ -12,8 +11,6 @@ public class ValidationError
 
     public string Message { get; }
 
-    public IJsonLineInfo LineInfo { get; }
-
     public IList<ValidationError> ChildErrors { get => field ??= []; init; }
 
     public ValidationError(string message)
@@ -21,11 +18,10 @@ public class ValidationError
         Message = message;
     }
 
-    public ValidationError(string message, JToken data)
+    public ValidationError(string message, JsonNode data)
         : this(message)
     {
-        Path = !string.IsNullOrWhiteSpace(data?.Path) ? data.Path : null;
-        LineInfo = data;
+        Path = !string.IsNullOrWhiteSpace(data?.GetPath()) ? data.GetPath() : null;
     }
 
     internal string CreateFullMessage()
@@ -36,11 +32,6 @@ public class ValidationError
         if (Path != null)
         {
             bld.Append(" Path: '{0}' ".FormatWith(Path));
-        }
-
-        if (LineInfo != null && LineInfo.HasLineInfo())
-        {
-            bld.Append(" Line {0} Position {1} ".FormatWith(LineInfo.LineNumber, LineInfo.LinePosition));
         }
 
         bld.AppendLine();

@@ -1,6 +1,7 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using System.Text.Json.Nodes;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
 
 namespace My.Json.Schema.TestConsole;
 
@@ -10,7 +11,7 @@ internal sealed class TestPackage
 
     public List<TestContext> Tests { get; init; } = [];
 
-    public static TestPackage Create(string testFileName, JArray testArray)
+    public static TestPackage Create(string testFileName, JsonArray testArray)
     {
         TestPackage package = new()
         {
@@ -21,16 +22,16 @@ internal sealed class TestPackage
         return package;
     }
 
-    private static IEnumerable<TestContext> CreateTests(TestPackage package, JArray testArray)
+    private static IEnumerable<TestContext> CreateTests(TestPackage package, JsonArray testArray)
     {
-        foreach (JToken item in testArray)
+        foreach (JsonNode item in testArray)
         {
-            if (item.Type != JTokenType.Object)
+            if (item.GetValueKind() != JsonValueKind.Object)
             {
                 throw new InvalidDataException("invalid test");
             }
 
-            yield return TestContext.Create(package, (JObject)item);
+            yield return TestContext.Create(package, (JsonObject)item);
         }
     }
 }
