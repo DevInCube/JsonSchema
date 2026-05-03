@@ -1,51 +1,51 @@
 ﻿{
 
-	"id" : "http://vit.com.ua/edgeserver/definitions#",
+	"id" : "http://example.com/product/definitions#",
 	"$schema": "http://json-schema.org/draft-04/schema#",
 
-	'definitions' : {
+	"definitions" : {
 		
-		'EventDir' : {
+		"EventDir" : {
 			
-			'type' : 'object',
+			"type" : "object",
 
-			'properties' : {
-                      
+			"properties" : {
+
 				"Prefix":{
-					'type' : 'string',
-				},                            
+					"type" : "string",
+				},
 				"Suffix":{
-					'type' : 'string',
-				},                              
+					"type" : "string",
+				},
 				"Dir":{
-					'type' : 'string',
+					"type" : "string",
 				}
 			},
 
-			"required" : [ 'Prefix', 'Suffix', 'Dir' ],
+			"required" : [ "Prefix", "Suffix", "Dir" ],
 		},
 
-		'FrameReact' : {
+		"FrameReact" : {
 			
-			'type' : 'object',
+			"type" : "object",
 
-			'properties' : {
+			"properties" : {
 
 				"Channel": {
-					'type' : 'string',
-				},                             
+					"type" : "string",
+				}, 
 				"Prefix":{
-					'type' : 'string',
-				},                            
+					"type" : "string",
+				},
 				"Suffix":{
-					'type' : 'string',
-				},                              
+					"type" : "string",
+				},
 				"Dir":{
-					'type' : 'string',
+					"type" : "string",
 				}
 			},
 
-			"required" : [ 'Channel', 'Prefix', 'Suffix', 'Dir' ],
+			"required" : [ "Channel", "Prefix", "Suffix", "Dir" ],
 			"additionalProperties": false,
 		},
 
