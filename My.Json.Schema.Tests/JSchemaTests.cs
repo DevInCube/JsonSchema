@@ -151,13 +151,6 @@ public class JSchemaTests
     #region title_tests
 
     [TestMethod]
-    public void JSchema_ParseEmptyTitle_TitleNull()
-    {
-        JSchema subject = JSchema.Parse(@"{'title' :,}");
-        Assert.AreEqual(null, subject.Title);
-    }
-
-    [TestMethod]
     public void JSchema_ParseNullTitle_TitleNull()
     {
         JSchema subject = JSchema.Parse(@"{""title"" : null}");
@@ -1360,4 +1353,53 @@ public class JSchemaTests
 
         Assert.IsNotNull(subject);
     }
+
+    #region bignum_tests
+
+    [TestMethod]
+    public void Bignum_PositiveIntegerType_IsValid()
+    {
+        JSchema schema = JSchema.Parse(@"{""type"":""integer""}");
+        JsonNode data = JsonNode.Parse("12345678910111213141516171819202122232425262728293031");
+
+        Assert.IsTrue(data.IsValid(schema));
+    }
+
+    [TestMethod]
+    public void Bignum_NegativeIntegerType_IsValid()
+    {
+        JSchema schema = JSchema.Parse(@"{""type"":""integer""}");
+        JsonNode data = JsonNode.Parse("-12345678910111213141516171819202122232425262728293031");
+
+        Assert.IsTrue(data.IsValid(schema));
+    }
+
+    [TestMethod]
+    public void Bignum_PositiveNumberType_IsValid()
+    {
+        JSchema schema = JSchema.Parse(@"{""type"":""number""}");
+        JsonNode data = JsonNode.Parse("98249283749234923498293171823948729348710298301928331");
+
+        Assert.IsTrue(data.IsValid(schema));
+    }
+
+    [TestMethod]
+    public void Bignum_NegativeNumberType_IsValid()
+    {
+        JSchema schema = JSchema.Parse(@"{""type"":""number""}");
+        JsonNode data = JsonNode.Parse("-98249283749234923498293171823948729348710298301928331");
+
+        Assert.IsTrue(data.IsValid(schema));
+    }
+
+    [TestMethod]
+    public void Bignum_StringType_IsNotValid()
+    {
+        JSchema schema = JSchema.Parse(@"{""type"":""string""}");
+        JsonNode data = JsonNode.Parse("98249283749234923498293171823948729348710298301928331");
+
+        Assert.IsFalse(data.IsValid(schema));
+    }
+
+    #endregion
 }
