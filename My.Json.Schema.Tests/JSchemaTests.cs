@@ -266,7 +266,7 @@ public class JSchemaTests
         Assert.IsTrue(subject.Type.HasFlag(JSchemaType.Null));
         Assert.IsTrue(subject.Type.HasFlag(JSchemaType.Object));
     }
-    #endregion   
+    #endregion
 
     #region referencing_tests
     [TestMethod]
@@ -399,7 +399,7 @@ public class JSchemaTests
     [TestMethod]
     public void Reference_InlineDereferencingWithoutBaseUri_OK()
     {
-        string shStr = @"{    
+        string shStr = @"{
     ""not"": { ""$ref"": ""#inner"" },
     ""definitions"": {
         ""schema1"": {
@@ -417,7 +417,7 @@ public class JSchemaTests
     [TestMethod]
     public void Reference_InvalidSchemaInDefinitions_ThrowError()
     {
-        string shStr = @"{        
+        string shStr = @"{
     ""definitions"": {
         ""schema1"": {
             ""id"": 1,
@@ -431,7 +431,7 @@ public class JSchemaTests
     [TestMethod]
     public void Reference_SubschemaDiscovery_OK()
     {
-        string shStr = @"{    
+        string shStr = @"{
     ""not"": { ""$ref"": ""#/inner"" },
     ""additionalProperties"": { ""$ref"": ""#/inner/schema1"" },
     ""inner"": {
@@ -452,8 +452,8 @@ public class JSchemaTests
     [TestMethod]
     public void Reference_NonExistingSubschemaDiscovery_ThrowError()
     {
-        string shStr = @"{    
-    ""not"": { ""$ref"": ""#/inner"" },    
+        string shStr = @"{
+    ""not"": { ""$ref"": ""#/inner"" },
 }";
         Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(shStr));
     }
@@ -1227,7 +1227,7 @@ public class JSchemaTests
 	""format"":""tab"",
 
 	""definitions"" : {
-		
+
 	},
 
     ""properties"":{
@@ -1265,7 +1265,7 @@ public class JSchemaTests
 
 					""format"" : ""list"",
 
-					""Style"" : { 
+					""Style"" : {
 						""MaxHeight"" : 450,
 						""MinHeight"" : 450,
 					},
@@ -1274,7 +1274,7 @@ public class JSchemaTests
                         ""type"":""object"",
 
 
-						""Style"" : { 
+						""Style"" : {
 							""DisplayMemberPath"" : ""Name"",
 						},
 
@@ -1314,7 +1314,7 @@ public class JSchemaTests
 						""required"":[ ""Name"", ""Prefix"", ""Suffix"", ""Dir"", ""Remove"", ""Sink"", ""Tout"" ],
 						""additionalProperties"": false,
                     }
-                    
+
                 }
             },
             ""required"":[ ""MasterName"", ""QueueSet"" ],
@@ -1338,7 +1338,7 @@ public class JSchemaTests
 						""MaxHeight"" : 300,
 						""MinHeight"" : 300,
 					},
-                    
+
 					""items"": { ""$ref"" : ""definitions#/definitions/EventDir"" },
                 }
             },
@@ -1355,7 +1355,7 @@ public class JSchemaTests
 	""additionalProperties"": false
 }";
         JSchemaPreloadedResolver res0 = new();
-        res0.Add(new Uri("http://vit.com.ua/edgeserver/definitions"), File.ReadAllText("Resources/common/definitions.txt"));
+        res0.Add(new Uri("http://example.com/product/definitions"), File.ReadAllText("Resources/common/definitions.txt"));
         var subject = JSchema.Parse(json, res0);
 
         Assert.IsNotNull(subject);
