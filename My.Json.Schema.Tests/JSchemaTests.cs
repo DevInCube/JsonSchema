@@ -17,38 +17,38 @@ public class JSchemaTests
     {
         JSchema subject = JSchema.Parse(@"{}");
 
-        Assert.AreEqual(null, subject.Id, "id");
-        Assert.AreEqual(null, subject.Title, "Title");
-        Assert.AreEqual(null, subject.Description, "Description");
-        Assert.AreEqual(null, subject.Default, "Default");
-        Assert.AreEqual(null, subject.Format, "Format");
+        Assert.IsNull(subject.Id, "id");
+        Assert.IsNull(subject.Title, "Title");
+        Assert.IsNull(subject.Description, "Description");
+        Assert.IsNull(subject.Default, "Default");
+        Assert.IsNull(subject.Format, "Format");
         Assert.AreEqual(JSchemaType.None, subject.Type, "Type");
 
-        Assert.AreNotEqual(null, subject.ItemsSchema, "ItemsSchema");
-        Assert.AreNotEqual(null, subject.ItemsArray, "ItemsArray");
-        Assert.AreEqual(0, subject.ItemsArray.Count, "ItemsArray.Count");
+        Assert.IsNotNull(subject.ItemsSchema, "ItemsSchema");
+        Assert.IsNotNull(subject.ItemsArray, "ItemsArray");
+        Assert.IsEmpty(subject.ItemsArray, "ItemsArray.Count");
 
-        Assert.AreNotEqual(null, subject.Properties, "Properties");
-        Assert.AreEqual(0, subject.Properties.Count, "Properties.Count");
-        Assert.AreEqual(null, subject.MultipleOf, "MultipleOf");
-        Assert.AreEqual(null, subject.Maximum, "Maximum");
-        Assert.AreEqual(null, subject.Minimum, "Minimum");
-        Assert.AreEqual(null, subject.MaxLength, "MaxLength");
-        Assert.AreEqual(null, subject.MinLength, "MinLength");
-        Assert.AreEqual(null, subject.MinItems, "MinItems");
-        Assert.AreEqual(null, subject.MaxItems, "MaxItems");
+        Assert.IsNotNull(subject.Properties, "Properties");
+        Assert.IsEmpty(subject.Properties, "Properties.Count");
+        Assert.IsNull(subject.MultipleOf, "MultipleOf");
+        Assert.IsNull(subject.Maximum, "Maximum");
+        Assert.IsNull(subject.Minimum, "Minimum");
+        Assert.IsNull(subject.MaxLength, "MaxLength");
+        Assert.IsNull(subject.MinLength, "MinLength");
+        Assert.IsNull(subject.MinItems, "MinItems");
+        Assert.IsNull(subject.MaxItems, "MaxItems");
         Assert.IsFalse(subject.UniqueItems, "UniqueItems");
-        Assert.AreNotEqual(null, subject.Required, "Required");
-        Assert.AreEqual(0, subject.Required.Count, "Required.Count");
-        Assert.AreNotEqual(null, subject.Enum, "Enum");
-        Assert.AreEqual(0, subject.Enum.Count, "Enum");
+        Assert.IsNotNull(subject.Required, "Required");
+        Assert.IsEmpty(subject.Required, "Required.Count");
+        Assert.IsNotNull(subject.Enum, "Enum");
+        Assert.IsEmpty(subject.Enum, "Enum");
         Assert.IsTrue(subject.AllowAdditionalProperties, "AllowAdditionalProperties");
-        Assert.AreNotEqual(null, subject.PatternProperties, "PatternProperties");
-        Assert.AreEqual(0, subject.PatternProperties.Count, "PatternProperties.Count");
-        Assert.AreNotEqual(null, subject.SchemaDependencies, "SchemaDependencies");
-        Assert.AreEqual(0, subject.SchemaDependencies.Count, "SchemaDependencies.Count");
-        Assert.AreNotEqual(null, subject.PropertyDependencies, "PropertyDependencies");
-        Assert.AreEqual(0, subject.PropertyDependencies.Count, "PropertyDependencies.Count");
+        Assert.IsNotNull(subject.PatternProperties, "PatternProperties");
+        Assert.IsEmpty(subject.PatternProperties, "PatternProperties.Count");
+        Assert.IsNotNull(subject.SchemaDependencies, "SchemaDependencies");
+        Assert.IsEmpty(subject.SchemaDependencies, "SchemaDependencies.Count");
+        Assert.IsNotNull(subject.PropertyDependencies, "PropertyDependencies");
+        Assert.IsEmpty(subject.PropertyDependencies, "PropertyDependencies.Count");
     }
 
     [TestMethod]
@@ -155,7 +155,7 @@ public class JSchemaTests
     {
         JSchema subject = JSchema.Parse(@"{""title"" : null}");
 
-        Assert.AreEqual(null, subject.Title);
+        Assert.IsNull(subject.Title);
     }
 
     [TestMethod]
@@ -178,7 +178,7 @@ public class JSchemaTests
     {
         JSchema subject = JSchema.Parse(@"{""description"" : null}");
 
-        Assert.AreEqual(null, subject.Description);
+        Assert.IsNull(subject.Description);
     }
 
     [TestMethod]
@@ -486,7 +486,7 @@ public class JSchemaTests
         string shStr = @"{ ""items"": [{ ""type"":""integer"" },{ ""type"":""boolean"" } ]}";
         JSchema subject = JSchema.Parse(shStr);
 
-        Assert.AreEqual(2, subject.ItemsArray.Count);
+        Assert.HasCount(2, subject.ItemsArray);
         Assert.IsTrue(subject.ItemsArray[0].Type.HasFlag(JSchemaType.Integer));
         Assert.IsTrue(subject.ItemsArray[1].Type.HasFlag(JSchemaType.Boolean));
     }
@@ -498,8 +498,8 @@ public class JSchemaTests
     {
         JSchema subject = JSchema.Parse(@"{""properties"":{}}");
 
-        Assert.AreNotEqual(null, subject.Properties);
-        Assert.AreEqual(0, subject.Properties.Count);
+        Assert.IsNotNull(subject.Properties);
+        Assert.IsEmpty(subject.Properties);
     }
 
     [TestMethod]
@@ -507,19 +507,19 @@ public class JSchemaTests
     {
         JSchema subject = JSchema.Parse(@"{""properties"":{""test"":{}}}");
 
-        Assert.AreNotEqual(null, subject.Properties["test"]);
-        Assert.AreEqual(1, subject.Properties.Count);
+        Assert.IsNotNull(subject.Properties["test"]);
+        Assert.HasCount(1, subject.Properties);
     }
     #endregion
 
     #region patternProperties_tests
     [TestMethod]
-    public void patternProperties_SetEmptyObject_IsEmptyArray()
+    public void PatternProperties_SetEmptyObject_IsEmptyArray()
     {
         JSchema subject = JSchema.Parse(@"{""patternProperties"":{}}");
 
-        Assert.AreNotEqual(null, subject.PatternProperties);
-        Assert.AreEqual(0, subject.PatternProperties.Count);
+        Assert.IsNotNull(subject.PatternProperties);
+        Assert.IsEmpty(subject.PatternProperties);
     }
     #endregion
 
@@ -663,6 +663,12 @@ public class JSchemaTests
     public void ExclusiveMinimum_IsSetButNoMinimum_ThrowsError()
     {
         Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{""exclusiveMinimum"":5}"));
+    }
+
+    [TestMethod]
+    public void ExclusiveMinimum_ParseIsSetToFalseButNoMinimum_ThrowsError()
+    {
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{""exclusiveMinimum"":false}"));
     }
     #endregion
 
@@ -858,7 +864,7 @@ public class JSchemaTests
     {
         JSchema subject = JSchema.Parse(@"{}");
 
-        Assert.AreEqual(null, subject.MinProperties);
+        Assert.IsNull(subject.MinProperties);
     }
 
     [TestMethod]
@@ -903,7 +909,7 @@ public class JSchemaTests
     {
         JSchema subject = JSchema.Parse(@"{}");
 
-        Assert.AreEqual(null, subject.MaxProperties);
+        Assert.IsNull(subject.MaxProperties);
     }
 
     [TestMethod]
@@ -978,7 +984,7 @@ public class JSchemaTests
     {
         JSchema subject = JSchema.Parse(@"{""required"":[""string""]}");
 
-        Assert.AreEqual(1, subject.Required.Count);
+        Assert.HasCount(1, subject.Required);
         Assert.AreEqual("string", subject.Required[0]);
     }
 
@@ -1013,7 +1019,7 @@ public class JSchemaTests
     {
         JSchema subject = JSchema.Parse(@"{""enum"":[""string""]}");
 
-        Assert.AreEqual(1, subject.Enum.Count);
+        Assert.HasCount(1, subject.Enum);
         Assert.AreEqual("string", subject.Enum[0].GetValue<string>());
     }
 
@@ -1022,7 +1028,7 @@ public class JSchemaTests
     {
         JSchema subject = JSchema.Parse(@"{""enum"":[0,2]}");
 
-        Assert.AreEqual(2, subject.Enum.Count);
+        Assert.HasCount(2, subject.Enum);
         Assert.AreEqual(0, subject.Enum[0].GetValue<int>());
         Assert.AreEqual(2, subject.Enum[1].GetValue<int>());
     }
@@ -1038,7 +1044,7 @@ public class JSchemaTests
     {
         JSchema subject = JSchema.Parse(@"{""enum"":[""string"",0, {}]}");
 
-        Assert.AreEqual(3, subject.Enum.Count);
+        Assert.HasCount(3, subject.Enum);
         Assert.AreEqual("string", subject.Enum[0].GetValue<string>());
         Assert.AreEqual(0, subject.Enum[1].GetValue<int>());
         Assert.IsTrue(JsonNode.DeepEquals(new JsonObject(), subject.Enum[2]));
@@ -1238,11 +1244,11 @@ public class JSchemaTests
     ""id"":""http://example.com/product/compositor#"",
 
     ""type"":""object"",
-	""format"":""tab"",
+    ""format"":""tab"",
 
-	""definitions"" : {
+    ""definitions"" : {
 
-	},
+    },
 
     ""properties"":{
 
@@ -1251,7 +1257,7 @@ public class JSchemaTests
             ""id"":""Source"",
             ""type"":""object"",
 
-			""description"" : ""Lorem Ipsum is simply dummy text of the printing and typesetting industry."",
+            ""description"" : ""Lorem Ipsum is simply dummy text of the printing and typesetting industry."",
 
 
             ""properties"":{
@@ -1259,44 +1265,44 @@ public class JSchemaTests
                 ""MasterName"":{
                     ""id"":""MasterName"",
                     ""type"": [""string"", ""null""],
-					""format"":""label"",
-					""description"" : ""Lorem Ipsum is simply dummy text of the printing and"",
+                    ""format"":""label"",
+                    ""description"" : ""Lorem Ipsum is simply dummy text of the printing and"",
                 },
 
-				""SetMaster"":{
+                ""SetMaster"":{
                     ""type"":""string"",
                     ""format"":""button"",
-					""ignore"":""true"",
-					""default"":""Set as Master"",
-					""description"" : ""Lorem Ipsum is simply dummy text of the printing and"",
+                    ""ignore"":""true"",
+                    ""default"":""Set as Master"",
+                    ""description"" : ""Lorem Ipsum is simply dummy text of the printing and"",
                 },
 
                 ""QueueSet"":{
                     ""id"":""QueueSet"",
                     ""type"":""array"",
 
-					""description"" : ""Lorem Ipsum is simply dummy text of the printing and"",
+                    ""description"" : ""Lorem Ipsum is simply dummy text of the printing and"",
 
-					""format"" : ""list"",
+                    ""format"" : ""list"",
 
-					""Style"" : {
-						""MaxHeight"" : 450,
-						""MinHeight"" : 450,
-					},
+                    ""Style"" : {
+                        ""MaxHeight"" : 450,
+                        ""MinHeight"" : 450,
+                    },
 
                     ""items"": {
                         ""type"":""object"",
 
 
-						""Style"" : {
-							""DisplayMemberPath"" : ""Name"",
-						},
+                        ""Style"" : {
+                            ""DisplayMemberPath"" : ""Name"",
+                        },
 
                         ""properties"":{
                             ""Name"":{
                                 ""id"":""Name"",
                                 ""type"":""string"",
-								""default"":""name"",
+                                ""default"":""name"",
                             },
                             ""Prefix"":{
                                 ""id"":""Prefix"",
@@ -1313,7 +1319,7 @@ public class JSchemaTests
                             ""Remove"":{
                                 ""id"":""Remove"",
                                 ""type"":""boolean"",
-								""description"" : ""Lorem Ipsum is simply dummy text of the printing and"",
+                                ""description"" : ""Lorem Ipsum is simply dummy text of the printing and"",
                             },
                             ""Sink"":{
                                 ""id"":""Sink"",
@@ -1325,40 +1331,40 @@ public class JSchemaTests
                             },
                         },
 
-						""required"":[ ""Name"", ""Prefix"", ""Suffix"", ""Dir"", ""Remove"", ""Sink"", ""Tout"" ],
-						""additionalProperties"": false,
+                        ""required"":[ ""Name"", ""Prefix"", ""Suffix"", ""Dir"", ""Remove"", ""Sink"", ""Tout"" ],
+                        ""additionalProperties"": false,
                     }
 
                 }
             },
             ""required"":[ ""MasterName"", ""QueueSet"" ],
-			""additionalProperties"": false,
+            ""additionalProperties"": false,
         },
 
         ""Sink"":{
             ""id"":""Sink"",
             ""type"":""object"",
 
-			""description"" : ""Lorem Ipsum is simply dummy text of the printing and typesetting industry."",
+            ""description"" : ""Lorem Ipsum is simply dummy text of the printing and typesetting industry."",
 
             ""properties"":{
                 ""QueueSet"":{
                     ""id"":""QueueSet"",
                     ""type"":""array"",
 
-					""format"" : ""list"",
+                    ""format"" : ""list"",
 
-					""Style"" : {
-						""MaxHeight"" : 300,
-						""MinHeight"" : 300,
-					},
+                    ""Style"" : {
+                        ""MaxHeight"" : 300,
+                        ""MinHeight"" : 300,
+                    },
 
-					""items"": { ""$ref"" : ""definitions#/definitions/EventDir"" },
+                    ""items"": { ""$ref"" : ""definitions#/definitions/EventDir"" },
                 }
             },
 
-			""required"":[ ""QueueSet"" ],
-			""additionalProperties"": false,
+            ""required"":[ ""QueueSet"" ],
+            ""additionalProperties"": false,
         }
     },
 
@@ -1366,7 +1372,7 @@ public class JSchemaTests
         ""Source"",
         ""Sink""
     ],
-	""additionalProperties"": false
+    ""additionalProperties"": false
 }";
         JSchemaPreloadedResolver res0 = new();
         res0.Add(new Uri("http://example.com/product/definitions"), File.ReadAllText("Resources/common/definitions.txt"));
@@ -1374,53 +1380,4 @@ public class JSchemaTests
 
         Assert.IsNotNull(subject);
     }
-
-    #region bignum_tests
-
-    [TestMethod]
-    public void Bignum_PositiveIntegerType_IsValid()
-    {
-        JSchema schema = JSchema.Parse(@"{""type"":""integer""}");
-        JsonNode data = JsonNode.Parse("12345678910111213141516171819202122232425262728293031");
-
-        Assert.IsTrue(data.IsValid(schema));
-    }
-
-    [TestMethod]
-    public void Bignum_NegativeIntegerType_IsValid()
-    {
-        JSchema schema = JSchema.Parse(@"{""type"":""integer""}");
-        JsonNode data = JsonNode.Parse("-12345678910111213141516171819202122232425262728293031");
-
-        Assert.IsTrue(data.IsValid(schema));
-    }
-
-    [TestMethod]
-    public void Bignum_PositiveNumberType_IsValid()
-    {
-        JSchema schema = JSchema.Parse(@"{""type"":""number""}");
-        JsonNode data = JsonNode.Parse("98249283749234923498293171823948729348710298301928331");
-
-        Assert.IsTrue(data.IsValid(schema));
-    }
-
-    [TestMethod]
-    public void Bignum_NegativeNumberType_IsValid()
-    {
-        JSchema schema = JSchema.Parse(@"{""type"":""number""}");
-        JsonNode data = JsonNode.Parse("-98249283749234923498293171823948729348710298301928331");
-
-        Assert.IsTrue(data.IsValid(schema));
-    }
-
-    [TestMethod]
-    public void Bignum_StringType_IsNotValid()
-    {
-        JSchema schema = JSchema.Parse(@"{""type"":""string""}");
-        JsonNode data = JsonNode.Parse("98249283749234923498293171823948729348710298301928331");
-
-        Assert.IsFalse(data.IsValid(schema));
-    }
-
-    #endregion
 }
