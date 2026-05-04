@@ -399,14 +399,11 @@ public class JSchemaValidationReader
             }
         }
 
-        if (_schema.ItemsSchema != null)
+        foreach (JsonNode item in array)
         {
-            foreach (JsonNode item in array)
+            if (!item.IsValid(_schema.ItemsSchema, out IList<ValidationError> childErrors, this))
             {
-                if (!item.IsValid(_schema.ItemsSchema, out IList<ValidationError> childErrors, this))
-                {
-                    RaiseValidationError("Array items are not valid against items schema", childErrors);
-                }
+                RaiseValidationError("Array items are not valid against items schema", childErrors);
             }
         }
 

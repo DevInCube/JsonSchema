@@ -520,12 +520,7 @@ public class JSchemaReader
                 }
             case SchemaKeywords.Items:
                 {
-                    if (value.GetValueKind() == JsonValueKind.Undefined
-                        || value.GetValueKind() == JsonValueKind.Null)
-                    {
-                        jschema.ItemsSchema = new JSchema();
-                    }
-                    else if (value is JsonObject obj)
+                    if (value is JsonObject obj)
                     {
                         jschema.ItemsSchema = ReadSchema(obj, _resolver);
                     }
@@ -535,7 +530,7 @@ public class JSchemaReader
                         {
                             if (jsh is not JsonObject jobj)
                             {
-                                throw new JSchemaException("items elements should be objects", value);
+                                throw new JSchemaException("'items' elements must be objects", value);
                             }
 
                             jschema.ItemsArray.Add(ReadSchema(jobj, _resolver));
@@ -543,7 +538,7 @@ public class JSchemaReader
                     }
                     else
                     {
-                        throw new JSchemaException("items is " + value.GetValueKind(), value);
+                        throw new JSchemaException($"'items' is {value?.GetValueKind() ?? JsonValueKind.Null}", value);
                     }
 
                     break;
@@ -755,11 +750,6 @@ public class JSchemaReader
                 {
                     var valueKind = value.GetValueKind();
                     var isBoolean = valueKind == JsonValueKind.True || valueKind == JsonValueKind.False;
-                    if (!(isBoolean || value.GetValueKind() == JsonValueKind.Object))
-                    {
-                        throw new JSchemaException("should not be a boolean or an object");
-                    }
-
                     if (isBoolean)
                     {
                         bool allow = value.GetValue<bool>();
@@ -768,6 +758,10 @@ public class JSchemaReader
                     else if (value is JsonObject obj)
                     {
                         jschema.AdditionalProperties = ReadSchema(obj, _resolver);
+                    }
+                    else
+                    {
+                        throw new JSchemaException("'additionalProperties' must be a boolean or an object");
                     }
 
                     break;
@@ -816,11 +810,6 @@ public class JSchemaReader
                 {
                     var valueKind = value.GetValueKind();
                     var isBoolean = valueKind == JsonValueKind.True || valueKind == JsonValueKind.False;
-                    if (!(isBoolean || value is JsonObject))
-                    {
-                        throw new JSchemaException("should not be a boolean or an object");
-                    }
-
                     if (isBoolean)
                     {
                         bool allow = value.GetValue<bool>();
@@ -829,6 +818,10 @@ public class JSchemaReader
                     else if (value is JsonObject obj)
                     {
                         jschema.AdditionalItems = ReadSchema(obj, _resolver);
+                    }
+                    else
+                    {
+                        throw new JSchemaException("'additionalItems' must be a boolean or an object", value);
                     }
 
                     break;

@@ -465,6 +465,13 @@ public class JSchemaTests
 
     #region items_tests
     [TestMethod]
+    public void Items_ParseNull_ThrowsJSchemaException()
+    {
+        string shStr = @"{ ""items"": null }";
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(shStr));
+    }
+
+    [TestMethod]
     public void Items_ParseAsSchema_SchemaMatches()
     {
         string shStr = @"{ ""items"": { ""type"":""integer"" }}";

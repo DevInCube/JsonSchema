@@ -26,14 +26,15 @@ internal static class Program
         string testsOptionalDraftDir = Path.Combine(testsDraftDir, "optional");
         var draftOptionalTests = LoadTests(testsOptionalDraftDir);
 
-        var testCase = GetTestCase(draftOptionalTests, "bignum.json", "integer", "a bignum is an integer");
+        var testCase = GetTestCase(draftTests, "refRemote.json", "base URI change", "base URI change ref invalid");
         RunTest(testCase, resolver);
+        ////Console.ReadKey(true);
 
         Console.WriteLine("MAIN TESTS ====================");
         RunTests(draftTests, resolver);
         Console.WriteLine(Environment.NewLine + "OPTIONAL TESTS ====================");
         RunTests(draftOptionalTests, resolver);
-        Console.ReadKey(true);
+        ////Console.ReadKey(true);
     }
 
     private static TestCase GetTestCase(IEnumerable<TestPackage> packages, string packageName, string contextName, string caseName)
