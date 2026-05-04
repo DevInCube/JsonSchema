@@ -695,25 +695,25 @@ public class JSchemaReader
                 {
                     if (value is not JsonArray array)
                     {
-                        throw new JSchemaException("required should be  an array", value);
+                        throw new JSchemaException("'required' must be an array", value);
                     }
 
                     if (array.Count == 0)
                     {
-                        throw new JSchemaException("required array cannot be empty", value);
+                        throw new JSchemaException("'required' array must have at least one element", value);
                     }
 
                     foreach (var req in array)
                     {
                         if (req.GetValueKind() != JsonValueKind.String)
                         {
-                            throw new JSchemaException("required array elements should be strings");
+                            throw new JSchemaException("'required' array elements must be strings", req);
                         }
 
                         string requiredProp = req.GetValue<string>();
                         if (jschema.Required.Contains(requiredProp))
                         {
-                            throw new JSchemaException("already contains", req);
+                            throw new JSchemaException("'required' array elements must be unique", req);
                         }
 
                         jschema.Required.Add(requiredProp);
@@ -862,7 +862,7 @@ public class JSchemaReader
         if (token.GetValueKind() != JsonValueKind.Number ||
             !token.AsValue().TryGetValue<double>(out var result))
         {
-            throw new JSchemaException("'{0}' : expected number, got {1}".FormatWith(name, token.GetValueKind().ToString()), token);
+            throw new JSchemaException("'{0}' : expected number, got {1}".FormatWith(name, token.GetValueKind()), token);
         }
 
         return result;
@@ -873,7 +873,7 @@ public class JSchemaReader
         if (token.GetValueKind() != JsonValueKind.Number ||
             !token.AsValue().TryGetValue<long>(out var result))
         {
-            throw new JSchemaException("'{0}' : expected integer, got {1}".FormatWith(name, token.GetValueKind().ToString()), token);
+            throw new JSchemaException("'{0}' : expected integer, got {1}".FormatWith(name, token.GetValueKind()), token);
         }
 
         if (result is < int.MinValue or > int.MaxValue)
@@ -888,7 +888,7 @@ public class JSchemaReader
     {
         if (token.GetValueKind() != JsonValueKind.True && token.GetValueKind() != JsonValueKind.False)
         {
-            throw new JSchemaException("'{0}' : expected boolean, got {1}".FormatWith(name, token.GetValueKind().ToString()), token);
+            throw new JSchemaException("'{0}' : expected boolean, got {1}".FormatWith(name, token.GetValueKind()), token);
         }
 
         return token.GetValue<bool>();
@@ -904,7 +904,7 @@ public class JSchemaReader
 
         if (kind != JsonValueKind.String)
         {
-            throw new JSchemaException("'{0}' : expected string, got {1}".FormatWith(name, kind.ToString()), token);
+            throw new JSchemaException("'{0}' : expected string, got {1}".FormatWith(name, kind), token);
         }
 
         return token.GetValue<string>();
