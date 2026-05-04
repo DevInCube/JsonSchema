@@ -599,9 +599,23 @@ public class JSchemaTests
     }
 
     [TestMethod]
+    public void ExclusiveMaximum_ParseIsSetToFalseButNoMaximum_ThrowsError()
+    {
+        Assert.Throws<JSchemaException>(() => _ = JSchema.Parse(@"{""exclusiveMaximum"":false}"));
+    }
+
+    [TestMethod]
     public void ExclusiveMaximum_ParseIsSetTrue_IsTrue()
     {
         JSchema subject = JSchema.Parse(@"{""maximum"":1, ""exclusiveMaximum"":true}");
+
+        Assert.IsTrue(subject.ExclusiveMaximum);
+    }
+
+    [TestMethod]
+    public void ExclusiveMaximum_ParseIsSetBeforeMaximum_IsTrue()
+    {
+        JSchema subject = JSchema.Parse(@"{""exclusiveMaximum"":true, ""maximum"":1}");
 
         Assert.IsTrue(subject.ExclusiveMaximum);
     }

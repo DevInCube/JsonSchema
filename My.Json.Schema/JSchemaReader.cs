@@ -402,6 +402,8 @@ public class JSchemaReader
             ProcessSchemaProperty(jschema, property.Key, property.Value);
         }
 
+        PostValidate(jschema, jtoken);
+
         if (popAfter && _scopeStack.Count > 0)
         {
             _scopeStack.Pop();
@@ -651,21 +653,11 @@ public class JSchemaReader
                 }
             case SchemaKeywords.ExclusiveMaximum:
                 {
-                    if (jschema.Maximum == null)
-                    {
-                        throw new JSchemaException("maximum value was not set", value);
-                    }
-
                     jschema.ExclusiveMaximum = ReadBoolean(value, name);
                     break;
                 }
             case SchemaKeywords.ExclusiveMinimum:
                 {
-                    if (jschema.Minimum == null)
-                    {
-                        throw new JSchemaException("minimum is not set", value);
-                    }
-
                     jschema.ExclusiveMinimum = ReadBoolean(value, name);
                     break;
                 }
@@ -923,5 +915,18 @@ public class JSchemaReader
         }
 
         return token.GetValue<string>();
+    }
+
+    private static void PostValidate(JSchema jschema, JsonObject jtoken)
+    {
+        if (jtoken.ContainsKey(SchemaKeywords.ExclusiveMaximum) && jschema.Maximum == null)
+        {
+            throw new JSchemaException("'exclusiveMaximum' requires 'maximum' to be present", jtoken);
+        }
+
+        if (jtoken.ContainsKey(SchemaKeywords.ExclusiveMinimum) && jschema.Minimum == null)
+        {
+            throw new JSchemaException("'exclusiveMinimum' requires 'minimum' to be present", jtoken);
+        }
     }
 }
