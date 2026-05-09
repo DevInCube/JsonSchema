@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore -c Release
+
+      - name: Unit tests
+        run: dotnet test --no-build -c Release
+
+      - name: JSON Schema Test Suite
+        run: dotnet run --project My.Json.Schema.TestConsole --no-build -c Release | tee suite-output.txt
+
+      - name: Generate badge data
+        run: |
+          LINE=$(grep "^SUITE_RESULT " suite-output.txt)
+
+          MAIN_S=$(echo "$LINE" | grep -oP 'mandatory_success=\K\d+')
+          MAIN_F=$(echo "$LINE" | grep -oP 'mandatory_failed=\K\d+')
+          MAIN_E=$(echo "$LINE" | grep -oP 'mandatory_exceptions=\K\d+')
+          OPT_S=$(echo "$LINE"  | grep -oP 'optional_success=\K\d+')
+          OPT_F=$(echo "$LINE"  | grep -oP 'optional_failed=\K\d+')
+          OPT_E=$(echo "$LINE"  | grep -oP 'optional_exceptions=\K\d+')
+
+          MAIN_TOTAL=$((MAIN_S + MAIN_F + MAIN_E))
+          OPT_TOTAL=$((OPT_S  + OPT_F  + OPT_E))
+          MAIN_PCT=$((MAIN_S * 100 / MAIN_TOTAL))
+          OPT_PCT=$((OPT_S  * 100 / OPT_TOTAL))
+
+          badge_color() {
+            local p=$1
+            if   [ "$p" -ge 100 ]; then echo "brightgreen"
+            elif [ "$p" -ge 90  ]; then echo "green"
+            elif [ "$p" -ge 75  ]; then echo "yellow"
+            else echo "red"; fi
+          }
+
+          mkdir -p badges
+          printf '{"schemaVersion":1,"label":"mandatory tests","message":"%s/%s (%s%%)","color":"%s"}\n' \
+            "$MAIN_S" "$MAIN_TOTAL" "$MAIN_PCT" "$(badge_color "$MAIN_PCT")" > badges/mandatory-tests.json
+          printf '{"schemaVersion":1,"label":"optional tests","message":"%s/%s (%s%%)","color":"%s"}\n' \
+            "$OPT_S" "$OPT_TOTAL" "$OPT_PCT" "$(badge_color "$OPT_PCT")" > badges/optional-tests.json
+
+          echo "mandatory: $MAIN_S/$MAIN_TOTAL ($MAIN_PCT%)"
+          echo "optional:  $OPT_S/$OPT_TOTAL ($OPT_PCT%)"
+
+      - name: Commit badge data
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add badges/
+          git diff --staged --quiet || git commit -m "chore: update test suite badges [skip ci]"
+          git push

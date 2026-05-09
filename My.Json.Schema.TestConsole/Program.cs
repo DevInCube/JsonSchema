@@ -31,10 +31,13 @@ internal static class Program
         ////Console.ReadKey(true);
 
         Console.WriteLine("MAIN TESTS ====================");
-        RunTests(draftTests, resolver);
+        using var mainResults = RunTests(draftTests, resolver);
         Console.WriteLine(Environment.NewLine + "OPTIONAL TESTS ====================");
-        RunTests(draftOptionalTests, resolver);
+        using var optionalResults = RunTests(draftOptionalTests, resolver);
         ////Console.ReadKey(true);
+
+        Console.WriteLine();
+        Console.WriteLine($"SUITE_RESULT mandatory_success={mainResults.SuccessCount} mandatory_failed={mainResults.FailedCount} mandatory_exceptions={mainResults.ExceptionCount} optional_success={optionalResults.SuccessCount} optional_failed={optionalResults.FailedCount} optional_exceptions={optionalResults.ExceptionCount}");
     }
 
     private static TestCase GetTestCase(IEnumerable<TestPackage> packages, string packageName, string contextName, string caseName)
@@ -59,9 +62,9 @@ internal static class Program
         RunTestCase(testCase, resolver, executionContext);
     }
 
-    private static void RunTests(IEnumerable<TestPackage> draftTests, JSchemaResolver resolver)
+    private static TestExecutionContext RunTests(IEnumerable<TestPackage> draftTests, JSchemaResolver resolver)
     {
-        using TestExecutionContext rootExecutionContext = new();
+        var rootExecutionContext = new TestExecutionContext();
         foreach (TestPackage testPack in draftTests)
         {
             rootExecutionContext.Log($"{testPack.Name}:{Environment.NewLine}");
@@ -89,6 +92,7 @@ internal static class Program
         rootExecutionContext.Log($"SUCCESS: \t{rootExecutionContext.SuccessCount}");
         rootExecutionContext.Log($"FAILED: \t{rootExecutionContext.FailedCount}");
         rootExecutionContext.Log($"EXCEPTIONS: \t{rootExecutionContext.ExceptionCount}");
+        return rootExecutionContext;
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types")]
