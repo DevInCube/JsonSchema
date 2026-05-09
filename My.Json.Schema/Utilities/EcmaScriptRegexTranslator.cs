@@ -88,7 +88,9 @@ public sealed class EcmaScriptRegexTranslator
     private bool TryEscapeSequence()
     {
         if (_pattern[_pos] != '\\' || _pos + 1 >= _pattern.Length)
+        {
             return false;
+        }
 
         char next = _pattern[_pos + 1];
 
