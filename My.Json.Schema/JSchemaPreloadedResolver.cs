@@ -8,7 +8,7 @@ namespace My.Json.Schema;
 public class JSchemaPreloadedResolver : JSchemaResolver
 {
     private readonly Dictionary<Uri, byte[]> _preloadedData;
-    private readonly JSchemaResolver _resolver;
+    private readonly JSchemaResolver? _resolver;
 
     public IEnumerable<Uri> PreloadedUris => _preloadedData.Keys;
 
@@ -25,12 +25,13 @@ public class JSchemaPreloadedResolver : JSchemaResolver
 
     public override Stream GetSchemaResource(Uri newUri)
     {
-        if (_preloadedData.TryGetValue(newUri, out byte[] data))
+        if (_preloadedData.TryGetValue(newUri, out byte[]? data))
         {
             return new MemoryStream(data);
         }
 
-        return _resolver?.GetSchemaResource(newUri);
+        return _resolver?.GetSchemaResource(newUri)
+            ?? throw new InvalidOperationException($"No preloaded schema for '{newUri}' and no fallback resolver.");
     }
 
     public void Add(Uri uri, byte[] value)

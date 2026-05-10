@@ -5,13 +5,13 @@ namespace My.Json.Schema.TestConsole;
 
 internal sealed class TestCase
 {
-    public TestContext Context { get; init; }
+    public TestContext Context { get; init; } = null!;
 
     public int Index { get; init; }
 
-    public string Description { get; init; }
+    public string Description { get; init; } = string.Empty;
 
-    public JsonNode Data { get; init; }
+    public JsonNode? Data { get; init; }
 
     public bool Valid { get; init; }
 
@@ -23,9 +23,9 @@ internal sealed class TestCase
         {
             Context = context,
             Index = index,
-            Description = obj.TryGetPropertyValue("description", out JsonNode desc) ? desc.GetValue<string>() : string.Empty,
-            Data = obj.TryGetPropertyValue("data", out JsonNode data) ? data : string.Empty,
-            Valid = obj.TryGetPropertyValue("valid", out JsonNode valid) && valid.GetValue<bool>(),
+            Description = obj.TryGetPropertyValue("description", out JsonNode? desc) ? desc?.GetValue<string>() ?? string.Empty : string.Empty,
+            Data = obj.TryGetPropertyValue("data", out JsonNode? data) ? data : JsonValue.Create(string.Empty),
+            Valid = obj.TryGetPropertyValue("valid", out JsonNode? valid) && (valid?.GetValue<bool>() ?? false),
         };
     }
 }

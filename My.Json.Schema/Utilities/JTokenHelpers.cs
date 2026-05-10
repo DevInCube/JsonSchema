@@ -1,4 +1,4 @@
-﻿using System.Text.Json.Nodes;
+using System.Text.Json.Nodes;
 
 namespace My.Json.Schema.Utilities;
 
@@ -16,7 +16,7 @@ internal static class JTokenHelpers
         return token;
     }
 
-    public static bool IsEqualTo(this JsonNode a, JsonNode b)
+    public static bool IsEqualTo(this JsonNode? a, JsonNode? b)
     {
         return s_equalityComparer.Equals(a, b);
     }

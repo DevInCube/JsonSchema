@@ -5,7 +5,7 @@ namespace My.Json.Schema.TestConsole;
 
 internal sealed class TestExecutionContext : IDisposable
 {
-    private readonly TestExecutionContext _parent;
+    private readonly TestExecutionContext? _parent;
     private readonly StringBuilder _builder = new();
 
     public int SuccessCount { get; private set; }
@@ -18,7 +18,7 @@ internal sealed class TestExecutionContext : IDisposable
 
     public int Total => SuccessCount + FailedCount + ExceptionCount;
 
-    public TestExecutionContext(TestExecutionContext parent = null)
+    public TestExecutionContext(TestExecutionContext? parent = null)
     {
         _parent = parent;
     }

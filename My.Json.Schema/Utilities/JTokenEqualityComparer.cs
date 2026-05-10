@@ -1,7 +1,6 @@
-﻿using System.Text.Json.Nodes;
+using System.Text.Json.Nodes;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text.Json;
 
@@ -9,16 +8,25 @@ namespace My.Json.Schema.Utilities;
 
 // Instance Equality
 // https://json-schema.org/draft/2020-12/json-schema-core.html#section-4.2.2
-internal sealed class JTokenEqualityComparer : IEqualityComparer<JsonNode>
+internal sealed class JTokenEqualityComparer : IEqualityComparer<JsonNode?>
 {
-    public bool Equals(JsonNode x, JsonNode y)
+    public bool Equals(JsonNode? x, JsonNode? y)
     {
-        JsonValueKind xKind = x?.GetValueKind() ?? JsonValueKind.Null;
-        JsonValueKind yKind = y?.GetValueKind() ?? JsonValueKind.Null;
-        if (xKind == JsonValueKind.Null && yKind == JsonValueKind.Null)
+        bool xIsNull = x.IsJsonNull();
+        bool yIsNull = y.IsJsonNull();
+
+        if (xIsNull && yIsNull)
         {
             return true;
         }
+
+        if (xIsNull || yIsNull)
+        {
+            return false;
+        }
+
+        JsonValueKind xKind = x!.GetValueKind();
+        JsonValueKind yKind = y!.GetValueKind();
 
         if (xKind == JsonValueKind.True && yKind == JsonValueKind.True)
         {
@@ -60,13 +68,14 @@ internal sealed class JTokenEqualityComparer : IEqualityComparer<JsonNode>
         return JsonNode.DeepEquals(x, y);
     }
 
-    public int GetHashCode([DisallowNull] JsonNode a)
+    public int GetHashCode(JsonNode? a)
     {
-        JsonValueKind aKind = a?.GetValueKind() ?? JsonValueKind.Null;
-        if (aKind == JsonValueKind.Null)
+        if (a.IsJsonNull())
         {
             return 0;
         }
+
+        JsonValueKind aKind = a!.GetValueKind();
 
         if (aKind == JsonValueKind.True || aKind == JsonValueKind.False)
         {

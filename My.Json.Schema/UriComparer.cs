@@ -9,7 +9,7 @@ internal sealed class UriComparer : IEqualityComparer<Uri>
 
     private UriComparer() { }
 
-    public bool Equals(Uri x, Uri y)
+    public bool Equals(Uri? x, Uri? y)
     {
         return string.Equals(x?.OriginalString, y?.OriginalString, StringComparison.Ordinal);
     }

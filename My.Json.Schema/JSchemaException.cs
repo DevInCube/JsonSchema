@@ -19,7 +19,7 @@ public class JSchemaException : Exception
     {
     }
 
-    public JSchemaException(string message, JsonNode jNode)
+    public JSchemaException(string message, JsonNode? jNode)
         : this(FormatMessage(message, jNode?.GetPath() ?? string.Empty))
     {
     }

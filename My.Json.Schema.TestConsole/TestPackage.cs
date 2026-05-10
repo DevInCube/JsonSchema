@@ -7,7 +7,7 @@ namespace My.Json.Schema.TestConsole;
 
 internal sealed class TestPackage
 {
-    public string Name { get; init; }
+    public string Name { get; init; } = string.Empty;
 
     public List<TestContext> Tests { get; init; } = [];
 
@@ -24,14 +24,14 @@ internal sealed class TestPackage
 
     private static IEnumerable<TestContext> CreateTests(TestPackage package, JsonArray testArray)
     {
-        foreach (JsonNode item in testArray)
+        foreach (JsonNode? item in testArray)
         {
-            if (item.GetValueKind() != JsonValueKind.Object)
+            if (item?.GetValueKind() != JsonValueKind.Object)
             {
                 throw new InvalidDataException("invalid test");
             }
 
-            yield return TestContext.Create(package, (JsonObject)item);
+            yield return TestContext.Create(package, (JsonObject)item!);
         }
     }
 }

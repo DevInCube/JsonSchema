@@ -7,7 +7,7 @@ namespace My.Json.Schema;
 
 public class ValidationError
 {
-    public string Path { get; }
+    public string? Path { get; }
 
     public string Message { get; }
 
@@ -18,7 +18,7 @@ public class ValidationError
         Message = message;
     }
 
-    public ValidationError(string message, JsonNode data)
+    public ValidationError(string message, JsonNode? data)
         : this(message)
     {
         Path = !string.IsNullOrWhiteSpace(data?.GetPath()) ? data.GetPath() : null;

@@ -2,6 +2,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
     <AssemblyTitle>My.Json.Schema.TestConsole</AssemblyTitle>
     <Product>My.Json.Schema.TestConsole</Product>
     <Copyright>Copyright ©  2015</Copyright>
@@ -16,6 +17,7 @@
   <ItemGroup>
     <None Include="Resources\remotes\**\*" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Resources\tests\draft4\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Resources\tests\draft6\**\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\My.Json.Schema\My.Json.Schema.csproj" />

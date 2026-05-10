@@ -7,11 +7,11 @@ namespace My.Json.Schema.TestConsole;
 
 internal sealed class TestContext
 {
-    public TestPackage Package { get; init; }
+    public TestPackage Package { get; init; } = null!;
 
-    public string Description { get; init; }
+    public string Description { get; init; } = string.Empty;
 
-    public JsonObject Schema { get; init; }
+    public JsonNode? Schema { get; init; }
 
     public List<TestCase> Cases { get; init; } = [];
 
@@ -22,11 +22,11 @@ internal sealed class TestContext
         TestContext context = new()
         {
             Package = package,
-            Description = testObject.TryGetPropertyValue("description", out JsonNode desc) ? desc.GetValue<string>() : string.Empty,
-            Schema = testObject.TryGetPropertyValue("schema", out JsonNode schema) ? (JsonObject)schema : null,
+            Description = testObject.TryGetPropertyValue("description", out JsonNode? desc) ? desc?.GetValue<string>() ?? string.Empty : string.Empty,
+            Schema = testObject.TryGetPropertyValue("schema", out JsonNode? schema) ? schema : null,
         };
-        var cases = (testObject.TryGetPropertyValue("tests", out JsonNode arr) ? (JsonArray)arr : null)
-            ?.Select((x, i) => TestCase.Create(context, x.AsObject(), i))
+        var cases = (testObject.TryGetPropertyValue("tests", out JsonNode? arr) ? (JsonArray?)arr : null)
+            ?.Select((x, i) => TestCase.Create(context, x!.AsObject(), i))
             ?? [];
         context.Cases.AddRange(cases);
         return context;
