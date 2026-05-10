@@ -341,7 +341,7 @@ public class JSchemaValidationReader
             if (_schema.ExclusiveMaximum
                 && Math.Abs(doubleValue - _schema.Maximum.Value) <= SafePrecisionValue)
             {
-                RaiseValidationError("Value should not be equal to maximum");
+                RaiseValidationError("Value is greater than or equal to exclusiveMaximum");
             }
         }
 
@@ -572,7 +572,7 @@ public class JSchemaValidationReader
             if (_schema.ExclusiveMaximum
                 && Math.Abs(integer - _schema.Maximum.Value) <= SafePrecisionValue)
             {
-                RaiseValidationError("Value should not be equal to maximum");
+                RaiseValidationError("Value is greater than or equal to exclusiveMaximum");
             }
         }
 

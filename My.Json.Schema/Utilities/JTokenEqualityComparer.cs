@@ -22,12 +22,12 @@ internal sealed class JTokenEqualityComparer : IEqualityComparer<JsonNode>
 
         if (xKind == JsonValueKind.True && yKind == JsonValueKind.True)
         {
-            return x.GetValue<bool>().Equals(y.GetValue<bool>());
+            return true;
         }
 
         if (xKind == JsonValueKind.False && yKind == JsonValueKind.False)
         {
-            return x.GetValue<bool>().Equals(y.GetValue<bool>());
+            return true;
         }
 
         if (xKind == JsonValueKind.String && yKind == JsonValueKind.String)
@@ -85,9 +85,9 @@ internal sealed class JTokenEqualityComparer : IEqualityComparer<JsonNode>
 
         if (aKind == JsonValueKind.Array)
         {
-            var arr1 = (JsonArray)a;
+            var arr = (JsonArray)a;
             var code = new HashCode();
-            foreach (var item in arr1)
+            foreach (var item in arr)
             {
                 code.Add(item, this);
             }
@@ -97,9 +97,9 @@ internal sealed class JTokenEqualityComparer : IEqualityComparer<JsonNode>
 
         if (aKind == JsonValueKind.Object)
         {
-            var obj1 = (JsonObject)a;
+            var obj = (JsonObject)a;
             var code = new HashCode();
-            foreach (var item in obj1.OrderBy(x => x.Key))
+            foreach (var item in obj.OrderBy(x => x.Key))
             {
                 code.Add(item.Value, this);
             }
