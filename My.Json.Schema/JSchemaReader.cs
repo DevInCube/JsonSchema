@@ -1,4 +1,4 @@
-﻿using My.Json.Schema.Utilities;
+using My.Json.Schema.Utilities;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System;
@@ -14,19 +14,29 @@ public class JSchemaReader
     private readonly Stack<Uri> _scopeStack = new();
     private readonly Dictionary<Uri, JSchema> _resolutionScopes;
 
-    // Pre-scanned index of id-tagged sub-schemas (location-independent identifiers).
+    // Pre-scanned index of $id-tagged sub-schemas (location-independent identifiers).
     // Populated before any $ref resolution so forward references like "#foo" can be resolved.
     private readonly Dictionary<Uri, JsonObject> _idIndex;
 
-    private JSchemaResolver _resolver;
+    private JSchemaResolver? _resolver;
 
-    public JSchemaReader()
+    // The URI this schema was fetched from (set for external readers). Used as base URI for
+    // resolving relative $ref values when the schema has no $id of its own.
+    private Uri? _baseUri;
+
+    private SchemaVersion _version;
+
+    // Returns the keyword used for the identity/anchor property in the active draft.
+    private string IdKeyword => _version == SchemaVersion.Draft4 ? SchemaKeywords.IdDraft4 : SchemaKeywords.Id;
+
+    public JSchemaReader(SchemaVersion defaultVersion = SchemaVersion.Draft6)
     {
+        _version = defaultVersion;
         _resolutionScopes = new Dictionary<Uri, JSchema>(UriComparer.Instance);
         _idIndex = new Dictionary<Uri, JsonObject>(UriComparer.Instance);
     }
 
-    public JSchema ReadSchema(JsonObject jObject, JSchemaResolver inResolver = null)
+    public JSchema ReadSchema(JsonObject jObject, JSchemaResolver? inResolver = null)
     {
         ArgumentNullException.ThrowIfNull(jObject);
 
@@ -37,23 +47,56 @@ public class JSchemaReader
 
         JSchema schema = Load(jObject);
 
-        if (!jObject.TryGetPropertyValue(SchemaKeywords.Ref, out JsonNode t))
+        if (!jObject.TryGetPropertyValue(SchemaKeywords.Ref, out JsonNode? t))
         {
             return schema;
         }
 
-        if (t.GetValueKind() != JsonValueKind.String)
+        if (t?.GetValueKind() != JsonValueKind.String)
         {
             throw new JSchemaException("$ref should be a string", t);
         }
 
-        string refStr = t.GetValue<string>();
+        string refStr = t!.GetValue<string>();
 
         var resolvedSchema = ResolveReference(refStr, jObject);
         resolvedSchema.Title ??= schema.Title;
         resolvedSchema.Description ??= schema.Description;
 
         return resolvedSchema;
+    }
+
+    private JSchema ReadSchemaNode(JsonNode? value, JSchemaResolver? resolver)
+    {
+        var kind = value?.GetValueKind() ?? JsonValueKind.Null;
+        if (kind == JsonValueKind.True || kind == JsonValueKind.False)
+        {
+            if (_version == SchemaVersion.Draft4)
+            {
+                throw new JSchemaException("Boolean schemas are not valid in draft-04", value);
+            }
+
+            return new JSchema { IsAlwaysValid = value!.GetValue<bool>(), Version = _version };
+        }
+
+        if (value is not JsonObject obj)
+        {
+            throw new JSchemaException($"schema must be a JSON object or boolean, got {kind}", value);
+        }
+
+        return ReadSchema(obj, resolver);
+    }
+
+    private JsonObject GetCurrentScopeRoot(JsonObject fallbackDocumentRoot)
+    {
+        if (_scopeStack.Count > 0
+            && _resolutionScopes.TryGetValue(_scopeStack.Peek(), out JSchema? scopeSchema)
+            && scopeSchema.Schema != null)
+        {
+            return scopeSchema.Schema;
+        }
+
+        return fallbackDocumentRoot;
     }
 
     private JSchema ResolveReference(string refStr, JsonObject jObject)
@@ -71,16 +114,20 @@ public class JSchemaReader
         if (refStr.Contains('#'))
         {
             // Compute the fully-qualified URI the $ref is pointing at (resolved against the
-            // current schema stack's id, if any). This is used for both the pre-scanned id
-            // index check and the resolution-scope check below.
-            Uri resolvedBaseUri = _schemaStack.LastOrDefault()?.Id;
+            // current resolution scope, which may differ from the innermost schema $id when
+            // the $id is relative).
+            Uri? resolvedBaseUri = _schemaStack.LastOrDefault()?.Id;
+            if (resolvedBaseUri == null || !resolvedBaseUri.IsAbsoluteUri)
+            {
+                resolvedBaseUri = _scopeStack.Count > 0 ? _scopeStack.Peek() : resolvedBaseUri;
+            }
+
             Uri resolvedRefUri = resolvedBaseUri?.IsAbsoluteUri == true
                 ? new Uri(resolvedBaseUri, refStr)
                 : new Uri(refStr, UriKind.RelativeOrAbsolute);
 
             // Location-independent identifier lookup (e.g. `$ref: "#foo"` pointing at a
-            // sub-schema previously declared via `id: "#foo"`). Covers the case where the
-            // id-tagged sub-schema has not yet been processed through AddScope.
+            // sub-schema previously declared via `$id: "#foo"`).
             if (_idIndex.FirstOrDefault(x => UriComparer.Instance.Equals(resolvedRefUri, x.Key)) is var idEntry &&
                 idEntry.Key != null)
             {
@@ -99,13 +146,17 @@ public class JSchemaReader
             string path = fragments[1];
             if (string.IsNullOrEmpty(fullHost))
             {
-                return ResolveInternalReference(fragments[1], rootObject);
+                // A JSON Pointer ref starting with '#' is resolved against the root of the
+                // current schema resource (the innermost scope with its own $id), not the
+                // document root.
+                JsonObject scopeRoot = GetCurrentScopeRoot(rootObject);
+                return ResolveInternalReference(fragments[1], scopeRoot);
             }
 
-            string rootId = null;
-            if (rootObject.TryGetPropertyValue(SchemaKeywords.Id, out JsonNode t2))
+            string? rootId = null;
+            if (rootObject.TryGetPropertyValue(IdKeyword, out JsonNode? t2))
             {
-                rootId = t2.GetValue<string>().Split('#')[0];
+                rootId = t2!.GetValue<string>().Split('#')[0];
                 if (rootId.Equals(fullHost, StringComparison.Ordinal))
                 {
                     return ResolveInternalReference(path, rootObject);
@@ -131,24 +182,23 @@ public class JSchemaReader
         }
         else
         {
-            Uri.TryCreate(refStr, UriKind.RelativeOrAbsolute, out Uri refStrUri);
+            Uri.TryCreate(refStr, UriKind.RelativeOrAbsolute, out Uri? refStrUri);
 
             // Absolute `$ref` may refer directly to a sub-schema declared with the same
-            // `id` somewhere in this schema (e.g. `id: "https://.../x.json"` on a
-            // `definitions` entry). Check resolution scopes before going external.
+            // `$id` somewhere in this schema. Check resolution scopes before going external.
             if (refStrUri?.IsAbsoluteUri == true
-                && _resolutionScopes.TryGetValue(refStrUri, out JSchema localScope))
+                && _resolutionScopes.TryGetValue(refStrUri, out JSchema? localScope))
             {
                 return localScope;
             }
 
             // Try to resolve internal schema by reference.
             JsonObject rootObject = (JsonObject)jObject.GetRootParent();
-            if (rootObject.TryGetPropertyValue(SchemaKeywords.Id, out JsonNode rootIdToken))
+            if (rootObject.TryGetPropertyValue(IdKeyword, out JsonNode? rootIdToken))
             {
-                var rootId = rootIdToken.GetValue<string>().Split('#')[0];
+                var rootId = rootIdToken!.GetValue<string>().Split('#')[0];
                 var internalReference = new Uri(CombineUri(rootId, refStr));
-                if (_resolutionScopes.TryGetValue(internalReference, out JSchema internalSchema))
+                if (_resolutionScopes.TryGetValue(internalReference, out JSchema? internalSchema))
                 {
                     return internalSchema;
                 }
@@ -171,10 +221,22 @@ public class JSchemaReader
                 parentContainer = parentContainer.Parent;
             }
 
+            if (parentContainer == null)
+            {
+                // Reached the document root without finding the ref. Resolve relative to the
+                // base URI the schema was fetched from (for externally-loaded schemas).
+                if (_baseUri != null)
+                {
+                    return ResolveExternalReference(new Uri(_baseUri, refStr));
+                }
+
+                throw new JSchemaException($"Cannot resolve relative ref '{refStr}': no base URI available");
+            }
+
             JsonObject parent = (JsonObject)parentContainer;
 
-            string parentId = parent.TryGetPropertyValue(SchemaKeywords.Id, out JsonNode t2)
-                ? t2.GetValue<string>()
+            string parentId = parent.TryGetPropertyValue(IdKeyword, out JsonNode? t2b)
+                ? t2b!.GetValue<string>()
                 : string.Empty;
 
             return ResolveReference(CombineUri(parentId, refStr), parent);
@@ -198,7 +260,7 @@ public class JSchemaReader
     }
 
     // JSON Pointer: https://datatracker.ietf.org/doc/html/rfc6901
-    private static JsonObject FindObject(JsonObject rootObject, string jPointer)
+    private static JsonNode FindNode(JsonObject rootObject, string jPointer)
     {
         static string UnEscapePropName(string propName)
         {
@@ -220,7 +282,7 @@ public class JSchemaReader
                     throw new JSchemaException($"Missing property '{propName}'.", obj);
                 }
 
-                return propVal;
+                return propVal ?? JsonNullSentinel.JsonNull;
             }
 
             if (token is JsonArray array)
@@ -230,7 +292,7 @@ public class JSchemaReader
                     throw new JSchemaException($"Invalid array index '{propName}'.", token);
                 }
 
-                return array[index];
+                return array[index] ?? JsonNullSentinel.JsonNull;
             }
 
             throw new JSchemaException("property value is not an object or array", token);
@@ -246,21 +308,25 @@ public class JSchemaReader
             token = GetProperty(token, propName);
         }
 
-        if (token is not JsonObject tokenObj)
-        {
-            throw new JSchemaException("ref to non-object", token);
-        }
-
-        return tokenObj;
+        return token;
     }
 
     private JSchema ResolveInternalReference(string jPointer, JsonObject rootObject)
     {
-        JsonObject tokenObj = FindObject(rootObject, jPointer);
+        JsonNode node = FindNode(rootObject, jPointer);
+
+        if (node?.GetValueKind() is JsonValueKind.True or JsonValueKind.False)
+        {
+            return new JSchema { IsAlwaysValid = node.GetValue<bool>() };
+        }
+
+        if (node is not JsonObject tokenObj)
+        {
+            throw new JSchemaException("ref to non-object", node);
+        }
 
         // TODO: internal definition schema  with "$ref" : "#" is resolving without root schema in stack.
-        JSchema internalSchema = ReadSchema(tokenObj, _resolver);
-        return internalSchema;
+        return ReadSchema(tokenObj, _resolver);
     }
 
     private JSchema ResolveExternalReference(Uri newUri)
@@ -277,29 +343,27 @@ public class JSchemaReader
         {
             AllowTrailingCommas = true,
         };
-        JsonObject obj = (JsonObject)JsonNode.Parse(jsonContent, documentOptions: options);
+        JsonObject obj = (JsonObject)JsonNode.Parse(jsonContent, documentOptions: options)!;
 
-        JSchemaReader externalReader = new() { _resolver = _resolver };
+        // Strip the fragment (if any) to get the document base URI.
+        Uri baseUri = newUri.Fragment.Length > 0
+            ? new Uri(newUri.GetLeftPart(UriPartial.Path))
+            : newUri;
 
-        // Pre-index every `id`-tagged sub-schema in the remote file. This must happen BEFORE
-        // any $ref resolution so that forward/location-independent references (e.g. `#foo`
-        // used before `A: {"id": "#foo"}` is encountered in source order) can be resolved.
+        JSchemaReader externalReader = new(_version) { _resolver = _resolver, _baseUri = baseUri };
+
+        // Pre-index every `$id`-tagged sub-schema in the remote file.
         externalReader.PreScanIds(obj);
 
-        // This registers any resolution scopes it declares and builds the root JSchema
-        // so that `$ref: "#"` inside the fragment resolves to the remote file's root
-        // (not to the fragment sub-schema).
         JSchema externalRootSchema = externalReader.ReadSchema(obj, _resolver);
 
         string[] fragments = newUri.OriginalString.Split('#');
-        string fragment = fragments.Length > 1 ? fragments[1] : null;
+        string? fragment = fragments.Length > 1 ? fragments[1] : null;
         if (string.IsNullOrEmpty(fragment))
         {
             return externalRootSchema;
         }
 
-        // Keep the root on the schema stack while we resolve the fragment so that any
-        // `$ref: "#"` encountered inside the fragment's sub-tree sees the remote root.
         externalReader._schemaStack.Push(externalRootSchema);
         try
         {
@@ -311,40 +375,40 @@ public class JSchemaReader
         }
     }
 
-    // Locates every `id` property and records the JsonObject it sits on.
-    // Used to resolve forward/location-independent `$ref`s.
-    private void PreScanIds(JsonObject obj, Uri parentScope = null)
+    // Locates every `$id` property and records the JsonObject it sits on.
+    private void PreScanIds(JsonObject obj, Uri? parentScope = null)
     {
-        TryAddId(obj, parentScope);
+        Uri? childScope = TryAddId(obj, parentScope);
 
         foreach (var prop in obj)
         {
-            WalkTokenForIds(prop.Value, parentScope);
+            WalkTokenForIds(prop.Value, childScope ?? parentScope);
         }
     }
 
-    private void TryAddId(JsonObject obj, Uri parentScope)
+    private Uri? TryAddId(JsonObject obj, Uri? parentScope)
     {
-        if (!obj.TryGetPropertyValue(SchemaKeywords.Id, out JsonNode idToken) ||
-            idToken.GetValueKind() != JsonValueKind.String)
+        if (!obj.TryGetPropertyValue(IdKeyword, out JsonNode? idToken) ||
+            idToken?.GetValueKind() != JsonValueKind.String)
         {
-            return;
+            return null;
         }
 
-        string idStr = idToken.GetValue<string>();
+        string idStr = idToken!.GetValue<string>();
         if (string.IsNullOrEmpty(idStr)
-            || !Uri.TryCreate(idStr, UriKind.RelativeOrAbsolute, out Uri idUri))
+            || !Uri.TryCreate(idStr, UriKind.RelativeOrAbsolute, out Uri? idUri))
         {
-            return;
+            return null;
         }
 
         var currentScope = parentScope?.IsAbsoluteUri == true
             ? new Uri(parentScope, idUri)
             : idUri;
         _idIndex[currentScope] = obj;
+        return currentScope;
     }
 
-    private void WalkTokenForIds(JsonNode token, Uri parentScope)
+    private void WalkTokenForIds(JsonNode? token, Uri? parentScope)
     {
         if (token is JsonObject childObj)
         {
@@ -352,44 +416,64 @@ public class JSchemaReader
         }
         else if (token is JsonArray childArr)
         {
-            foreach (JsonNode item in childArr)
+            foreach (JsonNode? item in childArr)
             {
                 WalkTokenForIds(item, parentScope);
             }
         }
     }
 
-    private void ReadDefinitions(JsonNode defProp)
+    private void ReadDefinitions(JsonNode? defProp)
     {
-        JsonNode value = defProp;
-        if (value is not JsonObject definitions)
+        if (defProp is not JsonObject definitions)
         {
-            throw new JSchemaException("definitions should be an object", value);
+            throw new JSchemaException("definitions should be an object", defProp);
         }
 
-        foreach (KeyValuePair<string, JsonNode> prop in definitions)
+        foreach (KeyValuePair<string, JsonNode?> prop in definitions)
         {
-            if (prop.Value is not JsonObject def)
+            if (prop.Value is JsonObject def)
             {
-                throw new JSchemaException("definitions property should be an object", value);
+                _ = ReadSchema(def, _resolver);
             }
-
-            _ = ReadSchema(def, _resolver);
-            // @todo unused schema variable
+            else if (prop.Value?.GetValueKind() is JsonValueKind.True or JsonValueKind.False)
+            {
+                // boolean schema definition is valid.
+            }
+            else
+            {
+                throw new JSchemaException("definitions property should be an object or boolean", prop.Value);
+            }
         }
     }
 
     private JSchema Load(JsonObject jtoken)
     {
-        JSchema jschema = new() { Schema = jtoken };
+        JSchema jschema = new() { Schema = jtoken, Version = _version };
 
         _schemaStack.Push(jschema);
 
+        // Detect draft version from $schema before processing any other keyword.
+        if (jtoken.TryGetPropertyValue(SchemaKeywords.Schema, out var schemaProp)
+            && schemaProp?.GetValueKind() == System.Text.Json.JsonValueKind.String)
+        {
+            string schemaUri = schemaProp.GetValue<string>();
+            if (schemaUri.Contains("draft-04", StringComparison.OrdinalIgnoreCase))
+            {
+                _version = SchemaVersion.Draft4;
+            }
+            else if (schemaUri.Contains("draft-06", StringComparison.OrdinalIgnoreCase))
+            {
+                _version = SchemaVersion.Draft6;
+            }
+
+        }
+
         bool popAfter = false;
-        if (jtoken.TryGetPropertyValue(SchemaKeywords.Id, out var idProp))
+        if (jtoken.TryGetPropertyValue(IdKeyword, out var idProp))
         {
             popAfter = true;
-            ProcessSchemaProperty(jschema, SchemaKeywords.Id, idProp);
+            ProcessSchemaProperty(jschema, IdKeyword, idProp);
         }
 
         if (jtoken.TryGetPropertyValue(SchemaKeywords.Definitions, out var defProp))
@@ -397,12 +481,15 @@ public class JSchemaReader
             ReadDefinitions(defProp);
         }
 
-        foreach (var property in jtoken.Where(property => !property.Key.Equals(SchemaKeywords.Id)))
+        foreach (var property in jtoken.Where(property => !property.Key.Equals(IdKeyword, StringComparison.Ordinal)))
         {
             ProcessSchemaProperty(jschema, property.Key, property.Value);
         }
 
-        PostValidate(jschema, jtoken);
+        if (_version == SchemaVersion.Draft4)
+        {
+            NormalizeDraft4ExclusiveBounds(jschema, jtoken);
+        }
 
         if (popAfter && _scopeStack.Count > 0)
         {
@@ -413,22 +500,55 @@ public class JSchemaReader
         return jschema;
     }
 
+    private static void NormalizeDraft4ExclusiveBounds(JSchema jschema, JsonObject jtoken)
+    {
+        if (jschema.ExclusiveMaximumFlag)
+        {
+            if (jschema.Maximum == null)
+            {
+                throw new JSchemaException("'exclusiveMaximum' requires 'maximum' in draft-04", jtoken);
+            }
+
+            jschema.ExclusiveMaximum = jschema.Maximum;
+            jschema.ExclusiveMaximumFlag = false;
+        }
+
+        if (jschema.ExclusiveMinimumFlag)
+        {
+            if (jschema.Minimum == null)
+            {
+                throw new JSchemaException("'exclusiveMinimum' requires 'minimum' in draft-04", jtoken);
+            }
+
+            jschema.ExclusiveMinimum = jschema.Minimum;
+            jschema.ExclusiveMinimumFlag = false;
+        }
+    }
+
     private void AddScope(JSchema jschema)
     {
         var scopeUri = _scopeStack.Count > 0
-            ? new Uri(_scopeStack.Peek(), jschema.Id)
-            : jschema.Id;
+            ? new Uri(_scopeStack.Peek(), jschema.Id!)
+            : jschema.Id!;
         _scopeStack.Push(scopeUri);
         _resolutionScopes[scopeUri] = jschema;
     }
 
-    private void ProcessSchemaProperty(JSchema jschema, string name, JsonNode value)
+    // Called by ProcessSchemaProperty for IdKeyword — routes to the correct keyword string.
+    private void ProcessIdKeyword(JSchema jschema, JsonNode? value)
+    {
+        string id = ReadString(value, IdKeyword)!;
+        jschema.Id = new Uri(id, UriKind.RelativeOrAbsolute);
+        AddScope(jschema);
+    }
+
+    private void ProcessSchemaProperty(JSchema jschema, string name, JsonNode? value)
     {
         static JSchemaType GetValueKind(JsonNode value)
         {
             static JSchemaType GetArrayType(JsonNode value)
             {
-                IEnumerable<JsonNode> array = value.AsArray();
+                IEnumerable<JsonNode?> array = value.AsArray();
                 if (!array.Any())
                 {
                     throw new JSchemaException("type array cannot be empty", value);
@@ -437,7 +557,7 @@ public class JSchemaReader
                 JSchemaType result = JSchemaType.None;
                 foreach (var arrItem in array)
                 {
-                    if (arrItem.GetValueKind() != JsonValueKind.String)
+                    if (arrItem?.GetValueKind() != JsonValueKind.String)
                     {
                         throw new JSchemaException("type array items should be strings", arrItem);
                     }
@@ -474,20 +594,26 @@ public class JSchemaReader
             throw new JSchemaException("type is " + value.GetValueKind(), value);
         }
 
-        void ReadId()
+        // Check id keyword dynamically so both "id" (draft-04) and "$id" (draft-06) are handled.
+        if (name.Equals(IdKeyword, StringComparison.Ordinal))
         {
-            string id = ReadString(value, name);
-            jschema.Id = new Uri(id, UriKind.RelativeOrAbsolute);
-            AddScope(jschema);
+            ProcessIdKeyword(jschema, value);
+            return;
+        }
+
+        // In draft-04, keywords introduced in draft-06 are unknown and must be silently ignored
+        // (stored as extension data per the spec's unknown-keyword rule).
+        if (_version == SchemaVersion.Draft4
+            && (name == SchemaKeywords.Const
+                || name == SchemaKeywords.Contains
+                || name == SchemaKeywords.PropertyNames))
+        {
+            jschema.ExtensionData[name] = value;
+            return;
         }
 
         switch (name)
         {
-            case SchemaKeywords.Id:
-                {
-                    ReadId();
-                    break;
-                }
             case SchemaKeywords.Title:
                 {
                     jschema.Title = ReadString(value, name);
@@ -510,7 +636,7 @@ public class JSchemaReader
                 }
             case SchemaKeywords.Type:
                 {
-                    jschema.Type = GetValueKind(value);
+                    jschema.Type = GetValueKind(value!);
                     break;
                 }
             case SchemaKeywords.Pattern:
@@ -520,7 +646,12 @@ public class JSchemaReader
                 }
             case SchemaKeywords.Items:
                 {
-                    if (value is JsonObject obj)
+                    var kind = value?.GetValueKind() ?? JsonValueKind.Null;
+                    if (kind == JsonValueKind.True || kind == JsonValueKind.False)
+                    {
+                        jschema.ItemsSchema = new JSchema { IsAlwaysValid = value!.GetValue<bool>() };
+                    }
+                    else if (value is JsonObject obj)
                     {
                         jschema.ItemsSchema = ReadSchema(obj, _resolver);
                     }
@@ -528,12 +659,7 @@ public class JSchemaReader
                     {
                         foreach (var jsh in array)
                         {
-                            if (jsh is not JsonObject jobj)
-                            {
-                                throw new JSchemaException("'items' elements must be objects", value);
-                            }
-
-                            jschema.ItemsArray.Add(ReadSchema(jobj, _resolver));
+                            jschema.ItemsArray.Add(ReadSchemaNode(jsh, _resolver));
                         }
                     }
                     else
@@ -552,23 +678,18 @@ public class JSchemaReader
 
                     foreach (var prop in dependencies)
                     {
-                        JsonNode dependency = prop.Value;
+                        JsonNode? dependency = prop.Value;
                         if (dependency is JsonObject dep)
                         {
                             jschema.SchemaDependencies.Add(prop.Key, ReadSchema(dep, _resolver));
                         }
                         else if (dependency is JsonArray depArray)
                         {
-                            if (depArray.Count == 0)
-                            {
-                                throw new JSchemaException("property dependencies array cannot be empty", depArray);
-                            }
-
                             jschema.PropertyDependencies.Add(prop.Key, []);
 
                             foreach (var depItem in depArray)
                             {
-                                if (depItem.GetValueKind() != JsonValueKind.String)
+                                if (depItem?.GetValueKind() != JsonValueKind.String)
                                 {
                                     throw new JSchemaException("property dependencies array elements should be strings", depItem);
                                 }
@@ -582,6 +703,10 @@ public class JSchemaReader
 
                                 jschema.PropertyDependencies[prop.Key].Add(propName);
                             }
+                        }
+                        else if (dependency?.GetValueKind() is JsonValueKind.True or JsonValueKind.False)
+                        {
+                            jschema.SchemaDependencies.Add(prop.Key, new JSchema { IsAlwaysValid = dependency.GetValue<bool>() });
                         }
                         else
                         {
@@ -600,13 +725,7 @@ public class JSchemaReader
 
                     foreach (var prop in props)
                     {
-                        JsonNode val = prop.Value;
-                        if (val is not JsonObject objVal)
-                        {
-                            throw new JSchemaException("properties property should be an object", val);
-                        }
-
-                        jschema.Properties[prop.Key] = ReadSchema(objVal, _resolver);
+                        jschema.Properties[prop.Key] = ReadSchemaNode(prop.Value, _resolver);
                     }
 
                     break;
@@ -620,13 +739,7 @@ public class JSchemaReader
 
                     foreach (var prop in props)
                     {
-                        JsonNode val = prop.Value;
-                        if (val is not JsonObject objVal)
-                        {
-                            throw new JSchemaException("patternProperties property should be an object", val);
-                        }
-
-                        jschema.PatternProperties[prop.Key] = ReadSchema(objVal, _resolver);
+                        jschema.PatternProperties[prop.Key] = ReadSchemaNode(prop.Value, _resolver);
                     }
 
                     break;
@@ -648,12 +761,28 @@ public class JSchemaReader
                 }
             case SchemaKeywords.ExclusiveMaximum:
                 {
-                    jschema.ExclusiveMaximum = ReadBoolean(value, name);
+                    if (_version == SchemaVersion.Draft4)
+                    {
+                        jschema.ExclusiveMaximumFlag = ReadBoolean(value, name);
+                    }
+                    else
+                    {
+                        jschema.ExclusiveMaximum = ReadDouble(value, name);
+                    }
+
                     break;
                 }
             case SchemaKeywords.ExclusiveMinimum:
                 {
-                    jschema.ExclusiveMinimum = ReadBoolean(value, name);
+                    if (_version == SchemaVersion.Draft4)
+                    {
+                        jschema.ExclusiveMinimumFlag = ReadBoolean(value, name);
+                    }
+                    else
+                    {
+                        jschema.ExclusiveMinimum = ReadDouble(value, name);
+                    }
+
                     break;
                 }
             case SchemaKeywords.MaximumLength:
@@ -698,14 +827,15 @@ public class JSchemaReader
                         throw new JSchemaException("'required' must be an array", value);
                     }
 
-                    if (array.Count == 0)
+                    if (_version == SchemaVersion.Draft4 && array.Count == 0)
                     {
-                        throw new JSchemaException("'required' array must have at least one element", value);
+                        throw new JSchemaException(
+                            "'required' array must have at least one element in draft-04", value);
                     }
 
                     foreach (var req in array)
                     {
-                        if (req.GetValueKind() != JsonValueKind.String)
+                        if (req?.GetValueKind() != JsonValueKind.String)
                         {
                             throw new JSchemaException("'required' array elements must be strings", req);
                         }
@@ -746,13 +876,28 @@ public class JSchemaReader
 
                     break;
                 }
+            case SchemaKeywords.Const:
+                {
+                    jschema.Const = value ?? JsonNullSentinel.JsonNull;
+                    break;
+                }
+            case SchemaKeywords.Contains:
+                {
+                    jschema.Contains = ReadSchemaNode(value, _resolver);
+                    break;
+                }
+            case SchemaKeywords.PropertyNames:
+                {
+                    jschema.PropertyNames = ReadSchemaNode(value, _resolver);
+                    break;
+                }
             case SchemaKeywords.AdditionalProperties:
                 {
-                    var valueKind = value.GetValueKind();
+                    var valueKind = value?.GetValueKind() ?? JsonValueKind.Null;
                     var isBoolean = valueKind == JsonValueKind.True || valueKind == JsonValueKind.False;
                     if (isBoolean)
                     {
-                        bool allow = value.GetValue<bool>();
+                        bool allow = value!.GetValue<bool>();
                         jschema.AllowAdditionalProperties = allow;
                     }
                     else if (value is JsonObject obj)
@@ -768,7 +913,7 @@ public class JSchemaReader
                 }
             case SchemaKeywords.AllOf:
                 {
-                    var schemas = ReadSchemaArray(value, name);
+                    var schemas = ReadSchemaNodeArray(value, name);
                     foreach (var sh in schemas)
                     {
                         jschema.AllOf.Add(sh);
@@ -778,7 +923,7 @@ public class JSchemaReader
                 }
             case SchemaKeywords.AnyOf:
                 {
-                    var schemas = ReadSchemaArray(value, name);
+                    var schemas = ReadSchemaNodeArray(value, name);
                     foreach (var sh in schemas)
                     {
                         jschema.AnyOf.Add(sh);
@@ -788,7 +933,7 @@ public class JSchemaReader
                 }
             case SchemaKeywords.OneOf:
                 {
-                    var schemas = ReadSchemaArray(value, name);
+                    var schemas = ReadSchemaNodeArray(value, name);
                     foreach (var sh in schemas)
                     {
                         jschema.OneOf.Add(sh);
@@ -798,21 +943,16 @@ public class JSchemaReader
                 }
             case SchemaKeywords.Not:
                 {
-                    if (value is not JsonObject obj)
-                    {
-                        throw new JSchemaException("should not be an object", value);
-                    }
-
-                    jschema.Not = ReadSchema(obj, _resolver);
+                    jschema.Not = ReadSchemaNode(value, _resolver);
                     break;
                 }
             case SchemaKeywords.AdditionalItems:
                 {
-                    var valueKind = value.GetValueKind();
+                    var valueKind = value?.GetValueKind() ?? JsonValueKind.Null;
                     var isBoolean = valueKind == JsonValueKind.True || valueKind == JsonValueKind.False;
                     if (isBoolean)
                     {
-                        bool allow = value.GetValue<bool>();
+                        bool allow = value!.GetValue<bool>();
                         jschema.AllowAdditionalItems = allow;
                     }
                     else if (value is JsonObject obj)
@@ -834,7 +974,7 @@ public class JSchemaReader
         }
     }
 
-    private IEnumerable<JSchema> ReadSchemaArray(JsonNode token, string name)
+    private IEnumerable<JSchema> ReadSchemaNodeArray(JsonNode? token, string name)
     {
         if (token is not JsonArray array)
         {
@@ -848,32 +988,42 @@ public class JSchemaReader
 
         foreach (var item in array)
         {
-            if (item is not JsonObject obj)
-            {
-                throw new JSchemaException("{0} array items should be objects".FormatWith(name), token);
-            }
-
-            yield return ReadSchema(obj, _resolver);
+            yield return ReadSchemaNode(item, _resolver);
         }
     }
 
-    private static double? ReadDouble(JsonNode token, string name)
+    private static double? ReadDouble(JsonNode? token, string name)
     {
-        if (token.GetValueKind() != JsonValueKind.Number ||
+        if (token?.GetValueKind() != JsonValueKind.Number ||
             !token.AsValue().TryGetValue<double>(out var result))
         {
-            throw new JSchemaException("'{0}' : expected number, got {1}".FormatWith(name, token.GetValueKind()), token);
+            throw new JSchemaException("'{0}' : expected number, got {1}".FormatWith(name, token?.GetValueKind() ?? JsonValueKind.Null), token);
         }
 
         return result;
     }
 
-    private static int? ReadInteger(JsonNode token, string name)
+    private static int? ReadInteger(JsonNode? token, string name)
     {
-        if (token.GetValueKind() != JsonValueKind.Number ||
-            !token.AsValue().TryGetValue<long>(out var result))
+        if (token?.GetValueKind() != JsonValueKind.Number)
         {
-            throw new JSchemaException("'{0}' : expected integer, got {1}".FormatWith(name, token.GetValueKind()), token);
+            throw new JSchemaException("'{0}' : expected integer, got {1}".FormatWith(name, token?.GetValueKind() ?? JsonValueKind.Null), token);
+        }
+
+        long result;
+        if (token.AsValue().TryGetValue<long>(out var longVal))
+        {
+            result = longVal;
+        }
+        else if (token.AsValue().TryGetValue<double>(out var doubleVal)
+            && !double.IsInfinity(doubleVal)
+            && doubleVal == Math.Floor(doubleVal))
+        {
+            result = (long)doubleVal;
+        }
+        else
+        {
+            throw new JSchemaException("'{0}' : expected integer, got Number".FormatWith(name), token);
         }
 
         if (result is < int.MinValue or > int.MaxValue)
@@ -884,17 +1034,17 @@ public class JSchemaReader
         return (int)result;
     }
 
-    private static bool ReadBoolean(JsonNode token, string name)
+    private static bool ReadBoolean(JsonNode? token, string name)
     {
-        if (token.GetValueKind() != JsonValueKind.True && token.GetValueKind() != JsonValueKind.False)
+        if (token?.GetValueKind() is not (JsonValueKind.True or JsonValueKind.False))
         {
-            throw new JSchemaException("'{0}' : expected boolean, got {1}".FormatWith(name, token.GetValueKind()), token);
+            throw new JSchemaException("'{0}' : expected boolean, got {1}".FormatWith(name, token?.GetValueKind() ?? JsonValueKind.Null), token);
         }
 
         return token.GetValue<bool>();
     }
 
-    private static string ReadString(JsonNode token, string name)
+    private static string? ReadString(JsonNode? token, string name)
     {
         JsonValueKind kind = token?.GetValueKind() ?? JsonValueKind.Null;
         if (kind == JsonValueKind.Null)
@@ -907,19 +1057,6 @@ public class JSchemaReader
             throw new JSchemaException("'{0}' : expected string, got {1}".FormatWith(name, kind), token);
         }
 
-        return token.GetValue<string>();
-    }
-
-    private static void PostValidate(JSchema jschema, JsonObject jtoken)
-    {
-        if (jtoken.ContainsKey(SchemaKeywords.ExclusiveMaximum) && jschema.Maximum == null)
-        {
-            throw new JSchemaException("'exclusiveMaximum' requires 'maximum' to be present", jtoken);
-        }
-
-        if (jtoken.ContainsKey(SchemaKeywords.ExclusiveMinimum) && jschema.Minimum == null)
-        {
-            throw new JSchemaException("'exclusiveMinimum' requires 'minimum' to be present", jtoken);
-        }
+        return token!.GetValue<string>();
     }
 }

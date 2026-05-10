@@ -1,4 +1,4 @@
-﻿using System.Text.Json.Nodes;
+using System.Text.Json.Nodes;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -13,56 +13,62 @@ internal static class Program
     private static void Main(string[] args)
     {
         string remoteHost = "http://localhost:1234";
-        string testSuiteDirectoryName = "Resources";
         string applicationDirectory = AppDomain.CurrentDomain.BaseDirectory;
-        string testSuiteDirectory = Path.Combine(applicationDirectory, testSuiteDirectoryName);
-        string remoteDirectory = Path.Combine(testSuiteDirectory, @"remotes");
+        string testSuiteDirectory = FindTestSuiteDirectory(applicationDirectory);
+        // Always use the Resources/remotes copy — it includes draft-04/schema and draft-06/schema
+        // which some tests reference and which the submodule remotes/ does not provide.
+        string remoteDirectory = Path.Combine(applicationDirectory, "Resources", "remotes");
         JSchemaResolver resolver = new JSchemaTestRemoteResolver(remoteHost, remoteDirectory);
 
-        string draftVersion = "draft4";
-        string testsDraftDir = Path.Combine(testSuiteDirectory, "tests", draftVersion);
+        RunDraft("draft4", SchemaVersion.Draft4, testSuiteDirectory, resolver);
+        Console.WriteLine();
+        RunDraft("draft6", SchemaVersion.Draft6, testSuiteDirectory, resolver);
+    }
+
+    private static string FindTestSuiteDirectory(string startDir)
+    {
+        // Walk up from the binary directory to find the git submodule.
+        // Falls back to the Resources copy bundled alongside the binary.
+        var dir = new DirectoryInfo(startDir);
+        while (dir != null)
+        {
+            string candidate = Path.Combine(dir.FullName, "JSON-Schema-Test-Suite");
+            if (Directory.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            dir = dir.Parent;
+        }
+
+        return Path.Combine(startDir, "Resources");
+    }
+
+    private static void RunDraft(string draftName, SchemaVersion version, string testSuiteDirectory, JSchemaResolver resolver)
+    {
+        string testsDraftDir = Path.Combine(testSuiteDirectory, "tests", draftName);
         var draftTests = LoadTests(testsDraftDir);
 
         string testsOptionalDraftDir = Path.Combine(testsDraftDir, "optional");
         var draftOptionalTests = LoadTests(testsOptionalDraftDir);
 
-        var testCase = GetTestCase(draftTests, "refRemote.json", "base URI change", "base URI change ref invalid");
-        RunTest(testCase, resolver);
-        ////Console.ReadKey(true);
-
-        Console.WriteLine("MAIN TESTS ====================");
-        using var mainResults = RunTests(draftTests, resolver);
-        Console.WriteLine(Environment.NewLine + "OPTIONAL TESTS ====================");
-        using var optionalResults = RunTests(draftOptionalTests, resolver);
-        ////Console.ReadKey(true);
+        Console.WriteLine($"=== {draftName.ToUpperInvariant()} MAIN TESTS ===");
+        using var mainResults = RunTests(draftTests, resolver, version);
+        Console.WriteLine($"{Environment.NewLine}=== {draftName.ToUpperInvariant()} OPTIONAL TESTS ===");
+        using var optionalResults = RunTests(draftOptionalTests, resolver, version);
 
         Console.WriteLine();
-        Console.WriteLine($"SUITE_RESULT mandatory_success={mainResults.SuccessCount} mandatory_failed={mainResults.FailedCount} mandatory_exceptions={mainResults.ExceptionCount} optional_success={optionalResults.SuccessCount} optional_failed={optionalResults.FailedCount} optional_exceptions={optionalResults.ExceptionCount}");
+        Console.WriteLine(
+            $"SUITE_RESULT draft={draftName} " +
+            $"mandatory_success={mainResults.SuccessCount} " +
+            $"mandatory_failed={mainResults.FailedCount} " +
+            $"mandatory_exceptions={mainResults.ExceptionCount} " +
+            $"optional_success={optionalResults.SuccessCount} " +
+            $"optional_failed={optionalResults.FailedCount} " +
+            $"optional_exceptions={optionalResults.ExceptionCount}");
     }
 
-    private static TestCase GetTestCase(IEnumerable<TestPackage> packages, string packageName, string contextName, string caseName)
-    {
-        TestPackage package = packages
-            .FirstOrDefault(x => x.Name.Equals(packageName, StringComparison.Ordinal))
-            ?? throw new ArgumentException($"package '{packageName}' is missing", nameof(packageName));
-        TestContext context = package.Tests
-            .FirstOrDefault(x => x.Description.Equals(contextName, StringComparison.Ordinal))
-            ?? throw new ArgumentException($"context '{contextName}' is missing in package '{packageName}'", nameof(contextName));
-        TestCase test = context.Cases
-            .FirstOrDefault(x => x.Description.Equals(caseName, StringComparison.Ordinal))
-            ?? throw new ArgumentException($"test case {caseName} is missing in context {contextName} of package {packageName}", nameof(caseName));
-        return test;
-    }
-
-    private static void RunTest(TestCase testCase, JSchemaResolver resolver)
-    {
-        using TestExecutionContext executionContext = new();
-        executionContext.Log($"Package: '{testCase.Context.Package.Name}'");
-        executionContext.Log($"  Test context: '{testCase.Context.Description}':");
-        RunTestCase(testCase, resolver, executionContext);
-    }
-
-    private static TestExecutionContext RunTests(IEnumerable<TestPackage> draftTests, JSchemaResolver resolver)
+    private static TestExecutionContext RunTests(IEnumerable<TestPackage> draftTests, JSchemaResolver resolver, SchemaVersion version)
     {
         var rootExecutionContext = new TestExecutionContext();
         foreach (TestPackage testPack in draftTests)
@@ -76,7 +82,7 @@ internal static class Program
                 foreach (TestCase testCase in testContext.Cases)
                 {
                     using TestExecutionContext testCaseExecutionContext = new(testExecutionContext);
-                    RunTestCase(testCase, resolver, testCaseExecutionContext);
+                    RunTestCase(testCase, resolver, testCaseExecutionContext, version);
                 }
 
                 if (testExecutionContext.IsSuccess)
@@ -96,14 +102,14 @@ internal static class Program
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types")]
-    private static void RunTestCase(TestCase testCase, JSchemaResolver resolver, TestExecutionContext context)
+    private static void RunTestCase(TestCase testCase, JSchemaResolver resolver, TestExecutionContext context, SchemaVersion version)
     {
         context.Log($"\tCase {testCase.Index + 1}: '{testCase.Description}'");
 
         JSchema schema;
         try
         {
-            schema = JSchema.Parse(testCase.Context.Schema.ToString(), resolver);
+            schema = JSchema.Parse(testCase.Context.Schema?.ToString() ?? "{}", resolver, version);
         }
         catch (Exception e)
         {
@@ -143,11 +149,16 @@ internal static class Program
     private static IEnumerable<TestPackage> LoadTests(string testsDirPath)
     {
         DirectoryInfo testsDir = new(testsDirPath);
+        if (!testsDir.Exists)
+        {
+            yield break;
+        }
+
         FileInfo[] testFiles = testsDir.GetFiles();
         foreach (var testFile in testFiles)
         {
             string content = testFile.OpenText().ReadToEnd();
-            JsonArray testArray = (JsonArray)JsonArray.Parse(content);
+            JsonArray testArray = (JsonArray)JsonArray.Parse(content)!;
             yield return TestPackage.Create(testFile.Name, testArray);
         }
     }

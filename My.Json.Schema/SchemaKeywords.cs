@@ -1,4 +1,4 @@
-﻿namespace My.Json.Schema;
+namespace My.Json.Schema;
 
 public static class SchemaKeywords
 {
@@ -26,10 +26,14 @@ public static class SchemaKeywords
     public const string Format = "format";
     public const string Default = "default";
     public const string MultipleOf = "multipleOf";
-    public const string Id = "id";
+    public const string IdDraft4 = "id";
+    public const string Id = "$id";
     public const string UniqueItems = "uniqueItems";
     public const string MinimumProperties = "minProperties";
     public const string MaximumProperties = "maxProperties";
+    public const string Const = "const";
+    public const string Contains = "contains";
+    public const string PropertyNames = "propertyNames";
 
     public const string AnyOf = "anyOf";
     public const string AllOf = "allOf";

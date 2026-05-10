@@ -42,20 +42,6 @@ jobs:
 
       - name: Generate badge data
         run: |
-          LINE=$(grep "^SUITE_RESULT " suite-output.txt)
-
-          MAIN_S=$(echo "$LINE" | grep -oP 'mandatory_success=\K\d+')
-          MAIN_F=$(echo "$LINE" | grep -oP 'mandatory_failed=\K\d+')
-          MAIN_E=$(echo "$LINE" | grep -oP 'mandatory_exceptions=\K\d+')
-          OPT_S=$(echo "$LINE"  | grep -oP 'optional_success=\K\d+')
-          OPT_F=$(echo "$LINE"  | grep -oP 'optional_failed=\K\d+')
-          OPT_E=$(echo "$LINE"  | grep -oP 'optional_exceptions=\K\d+')
-
-          MAIN_TOTAL=$((MAIN_S + MAIN_F + MAIN_E))
-          OPT_TOTAL=$((OPT_S  + OPT_F  + OPT_E))
-          MAIN_PCT=$((MAIN_S * 100 / MAIN_TOTAL))
-          OPT_PCT=$((OPT_S  * 100 / OPT_TOTAL))
-
           badge_color() {
             local p=$1
             if   [ "$p" -ge 100 ]; then echo "brightgreen"
@@ -64,14 +50,39 @@ jobs:
             else echo "red"; fi
           }
 
-          mkdir -p badges
-          printf '{"schemaVersion":1,"label":"mandatory tests","message":"%s/%s (%s%%)","color":"%s"}\n' \
-            "$MAIN_S" "$MAIN_TOTAL" "$MAIN_PCT" "$(badge_color "$MAIN_PCT")" > badges/mandatory-tests.json
-          printf '{"schemaVersion":1,"label":"optional tests","message":"%s/%s (%s%%)","color":"%s"}\n' \
-            "$OPT_S" "$OPT_TOTAL" "$OPT_PCT" "$(badge_color "$OPT_PCT")" > badges/optional-tests.json
+          make_badges() {
+            local DRAFT=$1
+            local LINE
+            LINE=$(grep "^SUITE_RESULT draft=${DRAFT} " suite-output.txt)
 
-          echo "mandatory: $MAIN_S/$MAIN_TOTAL ($MAIN_PCT%)"
-          echo "optional:  $OPT_S/$OPT_TOTAL ($OPT_PCT%)"
+            local MAIN_S MAIN_F MAIN_E OPT_S OPT_F OPT_E
+            MAIN_S=$(echo "$LINE" | grep -oP 'mandatory_success=\K\d+')
+            MAIN_F=$(echo "$LINE" | grep -oP 'mandatory_failed=\K\d+')
+            MAIN_E=$(echo "$LINE" | grep -oP 'mandatory_exceptions=\K\d+')
+            OPT_S=$(echo "$LINE"  | grep -oP 'optional_success=\K\d+')
+            OPT_F=$(echo "$LINE"  | grep -oP 'optional_failed=\K\d+')
+            OPT_E=$(echo "$LINE"  | grep -oP 'optional_exceptions=\K\d+')
+
+            local MAIN_TOTAL OPT_TOTAL MAIN_PCT OPT_PCT
+            MAIN_TOTAL=$((MAIN_S + MAIN_F + MAIN_E))
+            OPT_TOTAL=$((OPT_S  + OPT_F  + OPT_E))
+            MAIN_PCT=$((MAIN_S * 100 / MAIN_TOTAL))
+            OPT_PCT=$((OPT_S  * 100 / OPT_TOTAL))
+
+            printf '{"schemaVersion":1,"label":"%s mandatory tests","message":"%s/%s (%s%%)","color":"%s"}\n' \
+              "$DRAFT" "$MAIN_S" "$MAIN_TOTAL" "$MAIN_PCT" "$(badge_color "$MAIN_PCT")" \
+              > "badges/${DRAFT}-mandatory-tests.json"
+            printf '{"schemaVersion":1,"label":"%s optional tests","message":"%s/%s (%s%%)","color":"%s"}\n' \
+              "$DRAFT" "$OPT_S" "$OPT_TOTAL" "$OPT_PCT" "$(badge_color "$OPT_PCT")" \
+              > "badges/${DRAFT}-optional-tests.json"
+
+            echo "${DRAFT} mandatory: $MAIN_S/$MAIN_TOTAL ($MAIN_PCT%)"
+            echo "${DRAFT} optional:  $OPT_S/$OPT_TOTAL ($OPT_PCT%)"
+          }
+
+          mkdir -p badges
+          make_badges "draft4"
+          make_badges "draft6"
 
       - name: Commit badge data
         if: github.ref == 'refs/heads/master' && github.event_name == 'push'

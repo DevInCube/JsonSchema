@@ -1,4 +1,4 @@
-﻿using My.Json.Schema.Utilities;
+using My.Json.Schema.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
@@ -10,20 +10,28 @@ public class JSchema
 {
     internal JsonObject Schema;
 
+    public bool? IsAlwaysValid { get; internal set; }
+
+    public SchemaVersion Version { get; internal set; } = SchemaVersion.Draft6;
+
+    // Scratch fields: set by JSchemaReader during draft-04 parsing and cleared after normalization.
+    internal bool ExclusiveMaximumFlag;
+    internal bool ExclusiveMinimumFlag;
+
     #region public properties
 
-    public Uri Id
+    public Uri? Id
     {
         get;
         set
         {
             field = value;
-            if (!Id.IsAbsoluteUri)
+            if (field != null && !field.IsAbsoluteUri)
             {
                 if (string.IsNullOrWhiteSpace(field.OriginalString)
                     || field.OriginalString.Equals("#", StringComparison.Ordinal))
                 {
-                    throw new JSchemaException("invalid id : {0}".FormatWith(Id));
+                    throw new JSchemaException("invalid id : {0}".FormatWith(field));
                 }
             }
         }
@@ -35,13 +43,13 @@ public class JSchema
 
     public IDictionary<string, JSchema> PatternProperties => field ??= new Dictionary<string, JSchema>();
 
-    public string Title { get; set; }
+    public string? Title { get; set; }
 
-    public string Description { get; set; }
+    public string? Description { get; set; }
 
-    public JsonNode Default { get; set; }
+    public JsonNode? Default { get; set; }
 
-    public string Format { get; set; }
+    public string? Format { get; set; }
 
     public JSchema ItemsSchema
     {
@@ -69,9 +77,9 @@ public class JSchema
 
     public double? Minimum { get; set; }
 
-    public bool ExclusiveMaximum { get; set; }
+    public double? ExclusiveMaximum { get; set; }
 
-    public bool ExclusiveMinimum { get; set; }
+    public double? ExclusiveMinimum { get; set; }
 
     public int? MaxLength
     {
@@ -101,13 +109,13 @@ public class JSchema
         }
     }
 
-    public string Pattern
+    public string? Pattern
     {
         get;
         set
         {
             field = value;
-            if (!StringHelpers.IsValidRegex(field))
+            if (field != null && !StringHelpers.IsValidRegex(field))
             {
                 throw new JSchemaException("pattern is not a valid regex string");
             }
@@ -182,7 +190,7 @@ public class JSchema
         set;
     }
 
-    public IList<JsonNode> Enum => field ??= [];
+    public IList<JsonNode?> Enum => field ??= [];
 
     public IList<JSchema> AllOf => field ??= [];
 
@@ -190,7 +198,7 @@ public class JSchema
 
     public IList<JSchema> OneOf => field ??= [];
 
-    public JSchema Not { get; set; }
+    public JSchema? Not { get; set; }
 
     public JSchema AdditionalItems
     {
@@ -204,7 +212,13 @@ public class JSchema
 
     public IDictionary<string, IList<string>> PropertyDependencies => field ??= new Dictionary<string, IList<string>>();
 
-    public IDictionary<string, JsonNode> ExtensionData => field ??= new Dictionary<string, JsonNode>();
+    public IDictionary<string, JsonNode?> ExtensionData => field ??= new Dictionary<string, JsonNode?>();
+
+    public JsonNode? Const { get; set; }
+
+    public JSchema? Contains { get; set; }
+
+    public JSchema? PropertyNames { get; set; }
 
     #endregion
 
@@ -217,10 +231,10 @@ public class JSchema
 
     public override string ToString()
     {
-        return Schema.ToString();
+        return Schema?.ToString() ?? (IsAlwaysValid == true ? "true" : "false");
     }
 
-    public static JSchema Parse(string json, JSchemaResolver resolver = null)
+    public static JSchema Parse(string json, JSchemaResolver? resolver = null, SchemaVersion defaultVersion = SchemaVersion.Draft6)
     {
         ArgumentNullException.ThrowIfNull(json);
 
@@ -233,12 +247,25 @@ public class JSchema
         {
             AllowTrailingCommas = true,
         };
-        if (JsonNode.Parse(json, documentOptions: options) is not JsonObject jtoken)
+        JsonNode? parsed = JsonNode.Parse(json, documentOptions: options);
+
+        if (parsed is JsonValue val &&
+            (val.GetValueKind() == JsonValueKind.True || val.GetValueKind() == JsonValueKind.False))
         {
-            throw new JSchemaException("schema must be a JSON object");
+            if (defaultVersion == SchemaVersion.Draft4)
+            {
+                throw new JSchemaException("Boolean schemas are not valid in draft-04");
+            }
+
+            return new JSchema { IsAlwaysValid = val.GetValue<bool>(), Version = defaultVersion };
         }
 
-        JSchemaReader reader = new();
+        if (parsed is not JsonObject jtoken)
+        {
+            throw new JSchemaException("schema must be a JSON object or boolean");
+        }
+
+        JSchemaReader reader = new(defaultVersion);
         return reader.ReadSchema(jtoken, resolver);
     }
 }
