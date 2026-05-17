@@ -200,6 +200,16 @@ public class JSchema
 
     public JSchema? Not { get; set; }
 
+    public JSchema? If { get; set; }
+
+    public JSchema? Then { get; set; }
+
+    public JSchema? Else { get; set; }
+
+    public string? ContentEncoding { get; set; }
+
+    public string? ContentMediaType { get; set; }
+
     public JSchema AdditionalItems
     {
         get => field ??= new JSchema();

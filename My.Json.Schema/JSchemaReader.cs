@@ -45,6 +45,14 @@ public class JSchemaReader
             _resolver = inResolver;
         }
 
+        // Pre-scan all $id declarations in the root document so that forward $ref→$id
+        // references (where $ref appears before the sub-schema that declares the $id) resolve
+        // correctly. Only done at the top level; recursive calls skip this.
+        if (_schemaStack.Count == 0)
+        {
+            PreScanIds(jObject);
+        }
+
         JSchema schema = Load(jObject);
 
         if (!jObject.TryGetPropertyValue(SchemaKeywords.Ref, out JsonNode? t))
@@ -206,6 +214,14 @@ public class JSchemaReader
 
             if (refStrUri?.IsAbsoluteUri == true)
             {
+                // Check pre-scanned $id index before going external (handles inline schemas
+                // whose $id happens to be the same absolute URI as the $ref).
+                if (_idIndex.FirstOrDefault(x => UriComparer.Instance.Equals(refStrUri, x.Key)) is var idEntry
+                    && idEntry.Key != null)
+                {
+                    return ReadSchema(idEntry.Value, _resolver);
+                }
+
                 return ResolveExternalReference(refStrUri);
             }
 
@@ -466,7 +482,12 @@ public class JSchemaReader
             {
                 _version = SchemaVersion.Draft6;
             }
+            else if (schemaUri.Contains("draft-07", StringComparison.OrdinalIgnoreCase))
+            {
+                _version = SchemaVersion.Draft7;
+            }
 
+            jschema.Version = _version;
         }
 
         bool popAfter = false;
@@ -601,12 +622,23 @@ public class JSchemaReader
             return;
         }
 
-        // In draft-04, keywords introduced in draft-06 are unknown and must be silently ignored
-        // (stored as extension data per the spec's unknown-keyword rule).
+        // Keywords introduced in later drafts are unknown in earlier drafts and must be silently
+        // ignored (stored as extension data per the spec's unknown-keyword rule).
         if (_version == SchemaVersion.Draft4
             && (name == SchemaKeywords.Const
                 || name == SchemaKeywords.Contains
                 || name == SchemaKeywords.PropertyNames))
+        {
+            jschema.ExtensionData[name] = value;
+            return;
+        }
+
+        if (_version < SchemaVersion.Draft7
+            && (name == SchemaKeywords.If
+                || name == SchemaKeywords.Then
+                || name == SchemaKeywords.Else
+                || name == SchemaKeywords.ContentEncoding
+                || name == SchemaKeywords.ContentMediaType))
         {
             jschema.ExtensionData[name] = value;
             return;
@@ -944,6 +976,31 @@ public class JSchemaReader
             case SchemaKeywords.Not:
                 {
                     jschema.Not = ReadSchemaNode(value, _resolver);
+                    break;
+                }
+            case SchemaKeywords.ContentEncoding:
+                {
+                    jschema.ContentEncoding = ReadString(value, name);
+                    break;
+                }
+            case SchemaKeywords.ContentMediaType:
+                {
+                    jschema.ContentMediaType = ReadString(value, name);
+                    break;
+                }
+            case SchemaKeywords.If:
+                {
+                    jschema.If = ReadSchemaNode(value, _resolver);
+                    break;
+                }
+            case SchemaKeywords.Then:
+                {
+                    jschema.Then = ReadSchemaNode(value, _resolver);
+                    break;
+                }
+            case SchemaKeywords.Else:
+                {
+                    jschema.Else = ReadSchemaNode(value, _resolver);
                     break;
                 }
             case SchemaKeywords.AdditionalItems:

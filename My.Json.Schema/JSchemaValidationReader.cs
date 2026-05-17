@@ -85,8 +85,67 @@ public class JSchemaValidationReader
             ValidateNot();
         }
 
-        //definitions
-        //@todo parse and validate
+        if (schema.If != null)
+        {
+            ValidateIfThenElse();
+        }
+
+        if ((schema.ContentEncoding != null || schema.ContentMediaType != null)
+            && (_data?.GetValueKind() ?? JsonValueKind.Null) == JsonValueKind.String)
+        {
+            ValidateContent();
+        }
+    }
+
+    private void ValidateContent()
+    {
+        string raw = _data!.GetValue<string>();
+        string content = raw;
+
+        if (_schema.ContentEncoding != null)
+        {
+            if (!string.Equals(_schema.ContentEncoding, "base64", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            // Validate that the string is valid base64.
+            Span<byte> buffer = new byte[(raw.Length * 3 / 4) + 4];
+            if (!Convert.TryFromBase64String(raw, buffer, out int bytesWritten))
+            {
+                RaiseValidationError("String is not valid base64");
+                return;
+            }
+
+            content = System.Text.Encoding.UTF8.GetString(buffer[..bytesWritten]);
+        }
+
+        if (_schema.ContentMediaType != null)
+        {
+            if (!string.Equals(_schema.ContentMediaType, "application/json", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            try
+            {
+                JsonDocument.Parse(content);
+            }
+            catch (JsonException)
+            {
+                RaiseValidationError("String content is not valid JSON");
+            }
+        }
+    }
+
+    private void ValidateIfThenElse()
+    {
+        bool ifValid = _data.IsValid(_schema.If!, this);
+        JSchema? branch = ifValid ? _schema.Then : _schema.Else;
+        if (branch != null && !_data.IsValid(branch, this))
+        {
+            RaiseValidationError(ifValid ? "Data is invalid against 'then' schema" : "Data is invalid against 'else' schema");
+        }
     }
 
     private void ValidateConst()

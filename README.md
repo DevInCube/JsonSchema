@@ -1,6 +1,6 @@
 # My.Json.Schema
 
-A [JSON Schema][json-schema-home] framework for .NET supporting draft-04 and draft-06.
+A [JSON Schema][json-schema-home] framework for .NET supporting draft-04, draft-06, and draft-07.
 
 [![CI](https://github.com/DevInCube/JsonSchema/actions/workflows/ci.yml/badge.svg)](https://github.com/DevInCube/JsonSchema/actions/workflows/ci.yml)
 
@@ -8,6 +8,7 @@ A [JSON Schema][json-schema-home] framework for .NET supporting draft-04 and dra
 |-------|-----------|----------|
 | draft-04 | [![Draft-04 Mandatory](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/DevInCube/JsonSchema/master/badges/draft4-mandatory-tests.json)](https://github.com/DevInCube/JsonSchema/actions/workflows/ci.yml) | [![Draft-04 Optional](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/DevInCube/JsonSchema/master/badges/draft4-optional-tests.json)](https://github.com/DevInCube/JsonSchema/actions/workflows/ci.yml) |
 | draft-06 | [![Draft-06 Mandatory](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/DevInCube/JsonSchema/master/badges/draft6-mandatory-tests.json)](https://github.com/DevInCube/JsonSchema/actions/workflows/ci.yml) | [![Draft-06 Optional](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/DevInCube/JsonSchema/master/badges/draft6-optional-tests.json)](https://github.com/DevInCube/JsonSchema/actions/workflows/ci.yml) |
+| draft-07 | [![Draft-07 Mandatory](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/DevInCube/JsonSchema/master/badges/draft7-mandatory-tests.json)](https://github.com/DevInCube/JsonSchema/actions/workflows/ci.yml) | [![Draft-07 Optional](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/DevInCube/JsonSchema/master/badges/draft7-optional-tests.json)](https://github.com/DevInCube/JsonSchema/actions/workflows/ci.yml) |
 
 ## Test suite
 

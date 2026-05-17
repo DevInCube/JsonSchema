@@ -40,6 +40,12 @@ public static class SchemaKeywords
     public const string OneOf = "oneOf";
     public const string Not = "not";
 
+    public const string If = "if";
+    public const string Then = "then";
+    public const string Else = "else";
+    public const string ContentEncoding = "contentEncoding";
+    public const string ContentMediaType = "contentMediaType";
+
     public const string Ref = "$ref";
     public const string Schema = "$schema";
 }

@@ -23,6 +23,8 @@ internal static class Program
         RunDraft("draft4", SchemaVersion.Draft4, testSuiteDirectory, resolver);
         Console.WriteLine();
         RunDraft("draft6", SchemaVersion.Draft6, testSuiteDirectory, resolver);
+        Console.WriteLine();
+        RunDraft("draft7", SchemaVersion.Draft7, testSuiteDirectory, resolver);
     }
 
     private static string FindTestSuiteDirectory(string startDir)
