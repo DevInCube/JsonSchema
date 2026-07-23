@@ -48,4 +48,16 @@ public static class SchemaKeywords
 
     public const string Ref = "$ref";
     public const string Schema = "$schema";
+
+    public const string Anchor = "$anchor";
+    public const string Defs = "$defs";
+    public const string DependentRequired = "dependentRequired";
+    public const string DependentSchemas = "dependentSchemas";
+    public const string MinContains = "minContains";
+    public const string MaxContains = "maxContains";
+    public const string RecursiveRef = "$recursiveRef";
+    public const string RecursiveAnchor = "$recursiveAnchor";
+    public const string UnevaluatedProperties = "unevaluatedProperties";
+    public const string UnevaluatedItems = "unevaluatedItems";
+    public const string Vocabulary = "$vocabulary";
 }

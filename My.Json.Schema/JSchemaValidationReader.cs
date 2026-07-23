@@ -95,6 +95,14 @@ public class JSchemaValidationReader
         {
             ValidateContent();
         }
+
+        if (schema.SchemaRef != null)
+        {
+            if (!_data.IsValid(schema.SchemaRef, this))
+            {
+                RaiseValidationError("Data is invalid against '$ref' schema");
+            }
+        }
     }
 
     private void ValidateContent()
@@ -499,18 +507,27 @@ public class JSchemaValidationReader
 
         if (_schema.Contains != null)
         {
-            bool anyMatch = array.Any(item => item.IsValid(_schema.Contains, this));
-            if (!anyMatch)
+            int matchCount = array.Count(item => item.IsValid(_schema.Contains, this));
+            int minContains = _schema.MinContains ?? 1;
+            if (matchCount < minContains)
             {
-                RaiseValidationError("Array does not contain an item matching the 'contains' schema");
+                RaiseValidationError("Array does not contain enough items matching the 'contains' schema");
+            }
+
+            if (_schema.MaxContains.HasValue && matchCount > _schema.MaxContains.Value)
+            {
+                RaiseValidationError("Array contains too many items matching the 'contains' schema");
             }
         }
 
-        foreach (JsonNode? item in array)
+        if (_schema.HasItemsSchema)
         {
-            if (!item.IsValid(_schema.ItemsSchema, out IList<ValidationError> childErrors, this))
+            foreach (JsonNode? item in array)
             {
-                RaiseValidationError("Array items are not valid against items schema", childErrors);
+                if (!item.IsValid(_schema.ItemsSchema, out IList<ValidationError> childErrors, this))
+                {
+                    RaiseValidationError("Array items are not valid against items schema", childErrors);
+                }
             }
         }
 
@@ -532,6 +549,32 @@ public class JSchemaValidationReader
                 if (!item.IsValid(itemSchema, out IList<ValidationError> childErrors, this))
                 {
                     RaiseValidationError("Array item is not valid against schema", childErrors);
+                }
+            }
+        }
+
+        if (!_schema.AllowUnevaluatedItems || _schema.UnevaluatedItems != null)
+        {
+            // Items are "evaluated" when covered by the single-schema items form, or within the tuple range.
+            bool allEvaluated = _schema.HasItemsSchema;
+            int evaluatedCount = _schema.ItemsArray.Count;
+
+            for (int i = 0; i < array.Count; i++)
+            {
+                if (allEvaluated || i < evaluatedCount)
+                {
+                    continue;
+                }
+
+                JsonNode? item = array[i];
+                if (!_schema.AllowUnevaluatedItems)
+                {
+                    RaiseValidationError("Unevaluated array item is not allowed");
+                }
+                else if (_schema.UnevaluatedItems != null
+                    && !item.IsValid(_schema.UnevaluatedItems, out IList<ValidationError> childErrors, this))
+                {
+                    RaiseValidationError("Unevaluated array item is not valid against unevaluatedItems schema", childErrors);
                 }
             }
         }
@@ -617,6 +660,31 @@ public class JSchemaValidationReader
                 if (!obj.TryGetPropertyValue(propertyName, out token))
                 {
                     RaiseValidationError("Property dependency is not valid");
+                }
+            }
+        }
+
+        if (!_schema.AllowUnevaluatedProperties || _schema.UnevaluatedProperties != null)
+        {
+            foreach (KeyValuePair<string, JsonNode?> prop in obj)
+            {
+                string propName = prop.Key;
+                bool evaluated = _schema.Properties.ContainsKey(propName)
+                    || _schema.PatternProperties.Keys.Any(p => RegexHelpers.Create(p).IsMatch(propName));
+
+                if (evaluated)
+                {
+                    continue;
+                }
+
+                if (!_schema.AllowUnevaluatedProperties)
+                {
+                    RaiseValidationError("Unevaluated property '{0}' is not allowed".FormatWith(propName));
+                }
+                else if (_schema.UnevaluatedProperties != null
+                    && !prop.Value.IsValid(_schema.UnevaluatedProperties, out IList<ValidationError> childErrors, this))
+                {
+                    RaiseValidationError("Unevaluated property '{0}' is not valid against unevaluatedProperties schema".FormatWith(propName), childErrors);
                 }
             }
         }

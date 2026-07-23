@@ -84,6 +84,7 @@ jobs:
           make_badges "draft4"
           make_badges "draft6"
           make_badges "draft7"
+          make_badges "draft2019-09"
 
       - name: Commit badge data
         if: github.ref == 'refs/heads/master' && github.event_name == 'push'

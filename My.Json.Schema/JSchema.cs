@@ -230,6 +230,24 @@ public class JSchema
 
     public JSchema? PropertyNames { get; set; }
 
+    public int? MinContains { get; set; }
+
+    public int? MaxContains { get; set; }
+
+    // 2019-09+: $ref alongside sibling keywords — validated in addition to the local schema.
+    public JSchema? SchemaRef { get; set; }
+
+    public JSchema? UnevaluatedProperties { get; set; }
+
+    public bool AllowUnevaluatedProperties { get; set; } = true;
+
+    public JSchema? UnevaluatedItems { get; set; }
+
+    public bool AllowUnevaluatedItems { get; set; } = true;
+
+    // True when 'items' was parsed as a single schema (not an array). Used for unevaluatedItems tracking.
+    internal bool HasItemsSchema { get; set; }
+
     #endregion
 
     public JSchema()

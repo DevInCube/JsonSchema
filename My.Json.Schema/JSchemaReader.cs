@@ -55,23 +55,41 @@ public class JSchemaReader
 
         JSchema schema = Load(jObject);
 
-        if (!jObject.TryGetPropertyValue(SchemaKeywords.Ref, out JsonNode? t))
+        // Handle $ref
+        if (jObject.TryGetPropertyValue(SchemaKeywords.Ref, out JsonNode? t))
         {
-            return schema;
+            if (t?.GetValueKind() != JsonValueKind.String)
+            {
+                throw new JSchemaException("$ref should be a string", t);
+            }
+
+            string refStr = t!.GetValue<string>();
+            var resolvedSchema = ResolveReference(refStr, jObject);
+
+            if (_version >= SchemaVersion.Draft2019_09)
+            {
+                // 2019-09+: $ref applies alongside sibling keywords — store for later validation.
+                schema.SchemaRef = resolvedSchema;
+            }
+            else
+            {
+                // pre-2019-09: $ref replaces sibling keywords.
+                resolvedSchema.Title ??= schema.Title;
+                resolvedSchema.Description ??= schema.Description;
+                return resolvedSchema;
+            }
         }
 
-        if (t?.GetValueKind() != JsonValueKind.String)
+        // Handle $recursiveRef (2019-09+) — treat as $ref when no $recursiveAnchor is active.
+        if (_version >= SchemaVersion.Draft2019_09
+            && jObject.TryGetPropertyValue(SchemaKeywords.RecursiveRef, out JsonNode? recursiveRefToken)
+            && recursiveRefToken?.GetValueKind() == JsonValueKind.String)
         {
-            throw new JSchemaException("$ref should be a string", t);
+            string recursiveRefStr = recursiveRefToken.GetValue<string>();
+            schema.SchemaRef ??= ResolveReference(recursiveRefStr, jObject);
         }
 
-        string refStr = t!.GetValue<string>();
-
-        var resolvedSchema = ResolveReference(refStr, jObject);
-        resolvedSchema.Title ??= schema.Title;
-        resolvedSchema.Description ??= schema.Description;
-
-        return resolvedSchema;
+        return schema;
     }
 
     private JSchema ReadSchemaNode(JsonNode? value, JSchemaResolver? resolver)
@@ -130,6 +148,26 @@ public class JSchemaReader
                 resolvedBaseUri = _scopeStack.Count > 0 ? _scopeStack.Peek() : resolvedBaseUri;
             }
 
+            // Fallback: when both stacks are empty (called from ReadSchema after Load() pops them),
+            // use the $id declared on jObject itself as the resolution base.
+            if (resolvedBaseUri == null || !resolvedBaseUri.IsAbsoluteUri)
+            {
+                if (jObject.TryGetPropertyValue(IdKeyword, out JsonNode? jObjId)
+                    && jObjId?.GetValueKind() == JsonValueKind.String)
+                {
+                    Uri.TryCreate(jObjId.GetValue<string>(), UriKind.RelativeOrAbsolute, out resolvedBaseUri);
+                    if (resolvedBaseUri != null && !resolvedBaseUri.IsAbsoluteUri && _scopeStack.Count > 0)
+                    {
+                        resolvedBaseUri = new Uri(_scopeStack.Peek(), resolvedBaseUri);
+                    }
+                }
+
+                if ((resolvedBaseUri == null || !resolvedBaseUri.IsAbsoluteUri) && _baseUri?.IsAbsoluteUri == true)
+                {
+                    resolvedBaseUri = _baseUri;
+                }
+            }
+
             Uri resolvedRefUri = resolvedBaseUri?.IsAbsoluteUri == true
                 ? new Uri(resolvedBaseUri, refStr)
                 : new Uri(refStr, UriKind.RelativeOrAbsolute);
@@ -146,6 +184,19 @@ public class JSchemaReader
                 scope.Key != null)
             {
                 return scope.Value;
+            }
+
+            // If the full URI wasn't found, try stripping the fragment and applying it as a JSON pointer.
+            if (resolvedRefUri.IsAbsoluteUri && resolvedRefUri.Fragment.Length > 0)
+            {
+                Uri resolvedNoFragment = new Uri(resolvedRefUri.GetLeftPart(UriPartial.Path));
+                if (_resolutionScopes.TryGetValue(resolvedNoFragment, out JSchema? fragmentScope))
+                {
+                    string fragmentPointer = resolvedRefUri.Fragment.TrimStart('#');
+                    return string.IsNullOrEmpty(fragmentPointer)
+                        ? fragmentScope
+                        : ResolveInternalReference(fragmentPointer, fragmentScope.Schema);
+                }
             }
 
             JsonObject rootObject = (JsonObject)jObject.GetRootParent();
@@ -184,6 +235,19 @@ public class JSchemaReader
                 }
 
                 remoteUri = new Uri(new Uri(rootId), refStr);
+            }
+
+            // Before going external: check if the target URI (without fragment) maps to an internal scope.
+            if (remoteUri.IsAbsoluteUri && remoteUri.Fragment.Length > 0)
+            {
+                Uri remoteNoFragment = new Uri(remoteUri.GetLeftPart(UriPartial.Path));
+                if (_resolutionScopes.TryGetValue(remoteNoFragment, out JSchema? internalScopeSchema))
+                {
+                    string fragmentPointer = remoteUri.Fragment.TrimStart('#');
+                    return string.IsNullOrEmpty(fragmentPointer)
+                        ? internalScopeSchema
+                        : ResolveInternalReference(fragmentPointer, internalScopeSchema.Schema);
+                }
             }
 
             return ResolveExternalReference(remoteUri);
@@ -391,15 +455,33 @@ public class JSchemaReader
         }
     }
 
-    // Locates every `$id` property and records the JsonObject it sits on.
+    // Locates every `$id` / `$anchor` declaration and records the JsonObject it sits on.
     private void PreScanIds(JsonObject obj, Uri? parentScope = null)
     {
         Uri? childScope = TryAddId(obj, parentScope);
+        Uri? currentScope = childScope ?? parentScope;
+
+        TryAddAnchor(obj, currentScope);
 
         foreach (var prop in obj)
         {
-            WalkTokenForIds(prop.Value, childScope ?? parentScope);
+            WalkTokenForIds(prop.Value, currentScope);
         }
+    }
+
+    private void TryAddAnchor(JsonObject obj, Uri? currentScope)
+    {
+        if (!obj.TryGetPropertyValue(SchemaKeywords.Anchor, out JsonNode? anchorToken) ||
+            anchorToken?.GetValueKind() != JsonValueKind.String)
+        {
+            return;
+        }
+
+        string anchor = anchorToken.GetValue<string>();
+        Uri anchorUri = currentScope?.IsAbsoluteUri == true
+            ? new Uri(currentScope, "#" + anchor)
+            : new Uri("#" + anchor, UriKind.RelativeOrAbsolute);
+        _idIndex[anchorUri] = obj;
     }
 
     private Uri? TryAddId(JsonObject obj, Uri? parentScope)
@@ -486,6 +568,10 @@ public class JSchemaReader
             {
                 _version = SchemaVersion.Draft7;
             }
+            else if (schemaUri.Contains("2019-09", StringComparison.OrdinalIgnoreCase))
+            {
+                _version = SchemaVersion.Draft2019_09;
+            }
 
             jschema.Version = _version;
         }
@@ -500,6 +586,11 @@ public class JSchemaReader
         if (jtoken.TryGetPropertyValue(SchemaKeywords.Definitions, out var defProp))
         {
             ReadDefinitions(defProp);
+        }
+
+        if (jtoken.TryGetPropertyValue(SchemaKeywords.Defs, out var defsProp))
+        {
+            ReadDefinitions(defsProp);
         }
 
         foreach (var property in jtoken.Where(property => !property.Key.Equals(IdKeyword, StringComparison.Ordinal)))
@@ -644,6 +735,22 @@ public class JSchemaReader
             return;
         }
 
+        if (_version < SchemaVersion.Draft2019_09
+            && (name == SchemaKeywords.DependentRequired
+                || name == SchemaKeywords.DependentSchemas
+                || name == SchemaKeywords.MinContains
+                || name == SchemaKeywords.MaxContains
+                || name == SchemaKeywords.UnevaluatedProperties
+                || name == SchemaKeywords.UnevaluatedItems
+                || name == SchemaKeywords.Anchor
+                || name == SchemaKeywords.RecursiveRef
+                || name == SchemaKeywords.RecursiveAnchor
+                || name == SchemaKeywords.Vocabulary))
+        {
+            jschema.ExtensionData[name] = value;
+            return;
+        }
+
         switch (name)
         {
             case SchemaKeywords.Title:
@@ -682,10 +789,12 @@ public class JSchemaReader
                     if (kind == JsonValueKind.True || kind == JsonValueKind.False)
                     {
                         jschema.ItemsSchema = new JSchema { IsAlwaysValid = value!.GetValue<bool>() };
+                        jschema.HasItemsSchema = true;
                     }
                     else if (value is JsonObject obj)
                     {
                         jschema.ItemsSchema = ReadSchema(obj, _resolver);
+                        jschema.HasItemsSchema = true;
                     }
                     else if (value is JsonArray array)
                     {
@@ -1021,6 +1130,109 @@ public class JSchemaReader
                         throw new JSchemaException("'additionalItems' must be a boolean or an object", value);
                     }
 
+                    break;
+                }
+            case SchemaKeywords.DependentRequired:
+                {
+                    if (value is not JsonObject deps)
+                    {
+                        throw new JSchemaException("'dependentRequired' should be an object", value);
+                    }
+
+                    foreach (var dep in deps)
+                    {
+                        if (dep.Value is not JsonArray arr)
+                        {
+                            throw new JSchemaException("'dependentRequired' values should be arrays", dep.Value);
+                        }
+
+                        jschema.PropertyDependencies[dep.Key] = [];
+                        foreach (var item in arr)
+                        {
+                            if (item?.GetValueKind() != JsonValueKind.String)
+                            {
+                                throw new JSchemaException("'dependentRequired' array items must be strings", item);
+                            }
+
+                            jschema.PropertyDependencies[dep.Key].Add(item.GetValue<string>());
+                        }
+                    }
+
+                    break;
+                }
+            case SchemaKeywords.DependentSchemas:
+                {
+                    if (value is not JsonObject deps)
+                    {
+                        throw new JSchemaException("'dependentSchemas' should be an object", value);
+                    }
+
+                    foreach (var dep in deps)
+                    {
+                        jschema.SchemaDependencies[dep.Key] = ReadSchemaNode(dep.Value, _resolver);
+                    }
+
+                    break;
+                }
+            case SchemaKeywords.MinContains:
+                {
+                    jschema.MinContains = ReadInteger(value, name);
+                    break;
+                }
+            case SchemaKeywords.MaxContains:
+                {
+                    jschema.MaxContains = ReadInteger(value, name);
+                    break;
+                }
+            case SchemaKeywords.UnevaluatedProperties:
+                {
+                    var valueKind = value?.GetValueKind() ?? JsonValueKind.Null;
+                    if (valueKind == JsonValueKind.True)
+                    {
+                        jschema.AllowUnevaluatedProperties = true;
+                    }
+                    else if (valueKind == JsonValueKind.False)
+                    {
+                        jschema.AllowUnevaluatedProperties = false;
+                    }
+                    else if (value is JsonObject obj)
+                    {
+                        jschema.UnevaluatedProperties = ReadSchema(obj, _resolver);
+                    }
+                    else
+                    {
+                        throw new JSchemaException("'unevaluatedProperties' must be a boolean or an object", value);
+                    }
+
+                    break;
+                }
+            case SchemaKeywords.UnevaluatedItems:
+                {
+                    var valueKind = value?.GetValueKind() ?? JsonValueKind.Null;
+                    if (valueKind == JsonValueKind.True)
+                    {
+                        jschema.AllowUnevaluatedItems = true;
+                    }
+                    else if (valueKind == JsonValueKind.False)
+                    {
+                        jschema.AllowUnevaluatedItems = false;
+                    }
+                    else if (value is JsonObject obj)
+                    {
+                        jschema.UnevaluatedItems = ReadSchema(obj, _resolver);
+                    }
+                    else
+                    {
+                        throw new JSchemaException("'unevaluatedItems' must be a boolean or an object", value);
+                    }
+
+                    break;
+                }
+            case SchemaKeywords.RecursiveAnchor:
+            case SchemaKeywords.Anchor:
+            case SchemaKeywords.Vocabulary:
+                {
+                    // Handled during pre-scan or stored as annotation only; no action needed here.
                     break;
                 }
             default:

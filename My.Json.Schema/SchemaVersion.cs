@@ -6,4 +6,5 @@ public enum SchemaVersion
     Draft4 = 4,
     Draft6 = 6,
     Draft7 = 7,
+    Draft2019_09 = 2019,
 }
